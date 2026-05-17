@@ -48,6 +48,7 @@ export function EventBridge() {
   const pushToast = useToastStore((s) => s.push);
   const lowBatteryNotified = useRef<Set<string>>(new Set());
 
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state, react-doctor/effect-needs-cleanup -- snapshots are 3 independent stores; cleanup happens via Promise-of-unsubscribe pattern at end
   useEffect(() => {
     // First-paint snapshots.
     api.listDevices().then((res) => {

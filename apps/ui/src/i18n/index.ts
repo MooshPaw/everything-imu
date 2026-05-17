@@ -25,8 +25,4 @@ export function setLocale(loc: SupportedLocale) {
   void i18next.changeLanguage(loc);
 }
 
-export function currentLocale(): SupportedLocale {
-  return (i18next.language as SupportedLocale) ?? "en";
-}
-
 export type { SupportedLocale };

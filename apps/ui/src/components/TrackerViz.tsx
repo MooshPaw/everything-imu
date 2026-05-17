@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unknown-property -- @react-three/fiber JSX intrinsics (args/position/intensity/etc.) */
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import type * as THREE from "three";
@@ -96,7 +97,7 @@ export function TrackerViz({ quat }: { quat: [number, number, number, number] })
     trails.set(key.current, history);
   }
   return (
-    <div className="relative h-32 w-32">
+    <div className="relative size-32">
       <Canvas camera={{ position: [2, 2, 3], fov: 45 }}>
         {/* Soft warm fill from one side + cool rim from opposite — sells
             the material as physical without overpowering the axes. */}

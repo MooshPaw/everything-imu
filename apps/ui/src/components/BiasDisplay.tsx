@@ -4,8 +4,8 @@
  * Bias is shown in millirad/s. Typical warmed-up values sit well under
  * ±50 mrad/s, so the gauge range is clamped to ±100 mrad/s with the
  * needle saturating at the edges and the wedge tinting toward warn when
- * the magnitude grows past 50 (a sign the filter is still settling or
- * the device drifted).
+ * the magnitude grows past 50 (a sign the filter is still settling, or
+ * that the device drifted).
  */
 const AXIS_HUE = {
   x: "var(--danger)",
@@ -19,7 +19,7 @@ export function BiasDisplay({ bias }: { bias: [number, number, number] | null })
   if (!bias) {
     return (
       <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border-subtle)] p-3 text-center text-xs text-[var(--fg-muted)]">
-        No bias estimate yet — VQF still warming up.
+        No bias estimate yet: VQF still warming up.
       </div>
     );
   }
@@ -36,7 +36,7 @@ export function BiasDisplay({ bias }: { bias: [number, number, number] | null })
         return (
           <div
             key={axis}
-            className="flex flex-col items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg)] px-2 py-2"
+            className="flex flex-col items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg)] p-2"
           >
             <Gauge angle={angle} tone={tone} axis={axis} />
             <div className="metric-num font-mono text-[11px] text-[var(--fg-primary)]">

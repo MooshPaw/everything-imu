@@ -31,7 +31,7 @@ export function EmptyState({
     <div
       className={`flex flex-col items-center gap-3 rounded-[var(--radius-md)] border border-dashed border-[var(--border-subtle)] text-center ${pad}`}
     >
-      <div className="relative grid h-14 w-14 place-items-center rounded-full bg-[var(--bg-elevated)] text-[var(--accent)]">
+      <div className="relative grid size-14 place-items-center rounded-full bg-[var(--bg-elevated)] text-[var(--accent)]">
         {/* faint accent halo so the disc reads as a soft focal point */}
         <span
           aria-hidden

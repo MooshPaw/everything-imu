@@ -23,7 +23,11 @@ export function ActivityFeed({ limit = 12 }: { limit?: number }) {
           key={e.id}
           className="flex items-baseline gap-3 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-panel)] px-3 py-1.5"
         >
-          <span className="font-mono text-[10px] text-[var(--fg-muted)]">
+          <span
+            className="font-mono text-[10px] text-[var(--fg-muted)]"
+            suppressHydrationWarning
+          >
+            {/* oxlint-disable-next-line react-doctor/rendering-hydration-mismatch-time -- Tauri CSR, no SSR */}
             {new Date(e.ts).toLocaleTimeString([], { hour12: false })}
           </span>
           <span className={`text-[10px] font-semibold uppercase ${LEVEL_CLS[e.level]}`}>

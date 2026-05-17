@@ -25,6 +25,7 @@ type Hit =
 export function GlobalSearch() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- open IS read at `if (!open) return null` below
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
 
@@ -55,6 +56,7 @@ export function GlobalSearch() {
       const k = macKey(snap.mac);
       const label = perDev[k]?.label ?? "";
       const hay = `${label} ${macHex(snap.mac)} ${snap.serial}`.toLowerCase();
+      // oxlint-disable-next-line react-doctor/js-set-map-lookups -- String.prototype.includes, not Array.includes
       if (hay.includes(needle)) {
         out.push({ kind: "tracker", key: k, label: label || macHex(snap.mac), mac: snap.mac });
       }
@@ -64,6 +66,7 @@ export function GlobalSearch() {
       const k = macKey(dev.mac);
       if (trackers[k]) continue; // already listed as tracker
       const hay = `${dev.kind} ${macHex(dev.mac)} ${dev.firmware ?? ""}`.toLowerCase();
+      // oxlint-disable-next-line react-doctor/js-set-map-lookups -- String.prototype.includes, not Array.includes
       if (hay.includes(needle)) {
         out.push({ kind: "device", key: k, label: `${dev.kind} ${macHex(dev.mac)}`, mac: dev.mac });
       }
@@ -74,6 +77,7 @@ export function GlobalSearch() {
     for (let i = recent.length - 1; i >= 0 && out.length < 50; i--) {
       const e = recent[i];
       const hay = `${e.target} ${e.message} ${e.level}`.toLowerCase();
+      // oxlint-disable-next-line react-doctor/js-set-map-lookups -- String.prototype.includes, not Array.includes
       if (hay.includes(needle)) {
         out.push({
           kind: "log",
@@ -103,8 +107,10 @@ export function GlobalSearch() {
   if (!open) return null;
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: dimmer click closes overlay; cmdk owns inner keyboard nav
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- dimmer
     <div
       className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-24 backdrop-blur-sm"
+      role="presentation"
       onClick={() => setOpen(false)}
       onKeyDown={(e) => {
         if (e.key === "Escape") setOpen(false);
@@ -120,6 +126,7 @@ export function GlobalSearch() {
         <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] px-3">
           <MagnifyingGlass size={14} className="text-[var(--fg-muted)]" />
           <Command.Input
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- search overlay opened by hotkey; focus on open is expected UX
             autoFocus
             value={q}
             onValueChange={setQ}

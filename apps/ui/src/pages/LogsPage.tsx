@@ -108,7 +108,7 @@ export function LogsPage() {
               type="checkbox"
               checked={follow}
               onChange={(e) => setFollow(e.target.checked)}
-              className="h-3.5 w-3.5 accent-[var(--accent)]"
+              className="size-3.5 accent-[var(--accent)]"
             />
             <ArrowDown size={11} />
             {t("labels.follow")}
@@ -132,7 +132,7 @@ export function LogsPage() {
               >
                 <span
                   aria-hidden
-                  className="h-1.5 w-1.5 rounded-full"
+                  className="size-1.5 rounded-full"
                   style={{ background: LEVEL_TONE[lv] }}
                 />
                 {lv}

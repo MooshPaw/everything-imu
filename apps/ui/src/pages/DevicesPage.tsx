@@ -145,7 +145,7 @@ export function DevicesPage() {
             type="checkbox"
             checked={allSelected}
             onChange={toggleAll}
-            className="h-3.5 w-3.5 accent-[var(--accent)]"
+            className="size-3.5 accent-[var(--accent)]"
           />
           {allSelected ? t("devices.deselect_all") : t("devices.select_all")}
         </label>
@@ -268,7 +268,7 @@ function DeviceCard({
           checked={selected}
           onClick={(e) => e.stopPropagation()}
           onChange={onToggle}
-          className="h-3.5 w-3.5 accent-[var(--accent)]"
+          className="size-3.5 accent-[var(--accent)]"
         />
         <span className="ml-auto rounded-full bg-[var(--bg-elevated)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--accent)]">
           {d.kind}
@@ -339,7 +339,7 @@ function InlineBtn({
       title={title}
       aria-label={title}
       onClick={onClick}
-      className="grid h-6 w-6 place-items-center rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-panel)] text-[var(--fg-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+      className="grid size-6 place-items-center rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-panel)] text-[var(--fg-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
     >
       {icon}
     </button>

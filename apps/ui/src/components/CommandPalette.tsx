@@ -37,6 +37,7 @@ type Action = {
  */
 export function CommandPalette() {
   const { t } = useTranslation();
+  // oxlint-disable-next-line react-doctor/rerender-state-only-in-handlers -- open IS read at `if (!open) return null` below
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const trackers = useTrackerStore((s) => s.trackers);
@@ -145,6 +146,7 @@ export function CommandPalette() {
   if (!open) return null;
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: dimmer click closes palette; cmdk owns inner keyboard nav
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions
     <div
       className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-24 backdrop-blur-sm"
       onClick={() => setOpen(false)}
@@ -159,6 +161,7 @@ export function CommandPalette() {
         className="w-full max-w-xl overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-panel)] shadow-2xl"
       >
         <Command.Input
+          // oxlint-disable-next-line jsx-a11y/no-autofocus -- command palette opened by hotkey; focus on open is expected UX
           autoFocus
           placeholder={t("palette.placeholder")}
           className="w-full border-b border-[var(--border-subtle)] bg-transparent px-4 py-3 text-sm text-[var(--fg-primary)] placeholder:text-[var(--fg-muted)] focus:outline-none"

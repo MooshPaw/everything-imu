@@ -209,7 +209,7 @@ export function PerDeviceConfig({
             checked={settings?.magnetometer_enabled ?? false}
             disabled={busy === "mag"}
             onChange={(e) => void toggleMag(e.target.checked)}
-            className="h-4 w-4 accent-[var(--accent)]"
+            className="size-4 accent-[var(--accent)]"
           />
           {t("hints.feed_mag")}
         </label>

@@ -204,6 +204,8 @@ function GroupBlock({
   const dragMac = useRef<string | null>(null);
   // local order overrides perDevSettings during drag so the UI updates
   // instantly without waiting for the IPC round-trip
+  // biome-ignore lint/correctness/noUnusedVariables: false positive — localOrder read via ?? below
+  // eslint-disable-next-line react-doctor/rerender-state-only-in-handlers
   const [localOrder, setLocalOrder] = useState<string[] | null>(null);
 
   // Single-pass O(n) lookup table beats two .find() scans in the
@@ -313,7 +315,7 @@ function GroupResetBtn({
       title={title}
       aria-label={title}
       onClick={onClick}
-      className="grid h-5 w-5 place-items-center rounded-[var(--radius-sm)] border border-[var(--border-subtle)] text-[var(--fg-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+      className="grid size-5 place-items-center rounded-[var(--radius-sm)] border border-[var(--border-subtle)] text-[var(--fg-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
     >
       {icon}
     </button>
@@ -376,7 +378,7 @@ function BentoTile({
       {feature && (
         <span
           aria-hidden
-          className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-[var(--accent-glow)] blur-3xl"
+          className="pointer-events-none absolute -right-12 -top-12 size-32 rounded-full bg-[var(--accent-glow)] blur-3xl"
         />
       )}
       <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--fg-section-header)]">
@@ -403,7 +405,7 @@ function ResetButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-panel)] px-4 py-4 text-sm font-medium text-[var(--fg-primary)] transition-colors hover:bg-[var(--warn-soft)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40"
+      className="flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-panel)] p-4 text-sm font-medium text-[var(--fg-primary)] transition-colors hover:bg-[var(--warn-soft)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40"
     >
       <span className="text-[var(--accent)]">{icon}</span>
       {label}

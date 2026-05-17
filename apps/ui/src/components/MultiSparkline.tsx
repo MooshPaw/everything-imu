@@ -68,7 +68,7 @@ export function MultiSparkline({
         <div className="flex items-center gap-3 text-[10px] text-[var(--fg-muted)]">
           {series.map((s) => (
             <span key={s.label} className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-full" style={{ background: s.color }} />
+              <span className="inline-block size-2 rounded-full" style={{ background: s.color }} />
               {s.label}
             </span>
           ))}

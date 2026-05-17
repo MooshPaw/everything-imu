@@ -60,7 +60,7 @@ export function ConnectionStatusCard() {
           </div>
           <div className="mt-1 flex items-center gap-2 text-[11px] text-[var(--fg-secondary)]">
             <span
-              className="inline-block h-1.5 w-1.5 rounded-full"
+              className="inline-block size-1.5 rounded-full"
               style={{ background: statusBadge.tone }}
             />
             <span style={{ color: statusBadge.tone }} className="font-semibold">
@@ -109,7 +109,7 @@ function HandshakeRing({
   const c = 2 * Math.PI * r;
   const offset = c * progress;
   return (
-    <div className="relative grid h-14 w-14 place-items-center">
+    <div className="relative grid size-14 place-items-center">
       <svg width={size} height={size} className="absolute inset-0 -rotate-90">
         <title>{label}</title>
         <circle

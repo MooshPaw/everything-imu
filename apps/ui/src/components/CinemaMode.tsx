@@ -85,7 +85,7 @@ export function CinemaMode() {
             type="button"
             onClick={close}
             aria-label={t("window.close")}
-            className="grid h-7 w-7 place-items-center rounded-[var(--radius-sm)] text-[var(--fg-muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--fg-primary)]"
+            className="grid size-7 place-items-center rounded-[var(--radius-sm)] text-[var(--fg-muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--fg-primary)]"
           >
             <X size={14} />
           </button>

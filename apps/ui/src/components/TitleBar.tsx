@@ -60,8 +60,10 @@ export function TitleBar() {
         fires on mousedown / dblclick.
       */}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: window drag region is not a button */}
+      {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- window drag region */}
       <div
         className="flex-1"
+        role="presentation"
         onMouseDown={(e) => {
           if (e.button === 0) void win?.startDragging();
         }}

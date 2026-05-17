@@ -78,7 +78,7 @@ export function HelpPage() {
 function ShortcutCard({ keys, action, icon }: Shortcut) {
   return (
     <div className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 transition-colors hover:border-[var(--accent-soft)]">
-      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-[var(--bg-panel)] text-[var(--accent)]">
+      <div className="grid size-8 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-[var(--bg-panel)] text-[var(--accent)]">
         {icon ?? <Keyboard size={14} />}
       </div>
       <div className="min-w-0 flex-1">

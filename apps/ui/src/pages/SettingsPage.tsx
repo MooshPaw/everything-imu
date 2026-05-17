@@ -182,7 +182,7 @@ export function SettingsPage() {
               checked={autostart}
               disabled={saving}
               onChange={(e) => void toggleAutostart(e.target.checked)}
-              className="h-4 w-4 accent-[var(--accent)]"
+              className="size-4 accent-[var(--accent)]"
             />
             {t("labels.launch_on_startup")}
           </label>
@@ -200,7 +200,7 @@ export function SettingsPage() {
                   t("msg.close_to_tray_updated"),
                 );
               }}
-              className="h-4 w-4 accent-[var(--accent)]"
+              className="size-4 accent-[var(--accent)]"
             />
             {t("labels.close_to_tray")}
           </label>
@@ -225,7 +225,7 @@ export function SettingsPage() {
                   t("msg.synth_auto_updated"),
                 );
               }}
-              className="h-4 w-4 accent-[var(--accent)]"
+              className="size-4 accent-[var(--accent)]"
             />
             {t("hints.auto_start_synthetic")}
           </label>

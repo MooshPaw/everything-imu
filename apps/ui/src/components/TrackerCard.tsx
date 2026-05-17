@@ -213,7 +213,7 @@ function CardAction({
       title={title}
       aria-label={title}
       onClick={onClick}
-      className="grid h-6 w-6 place-items-center rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-panel)] text-[var(--fg-muted)] shadow-sm hover:border-[var(--accent)] hover:text-[var(--accent)]"
+      className="grid size-6 place-items-center rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-panel)] text-[var(--fg-muted)] shadow-sm hover:border-[var(--accent)] hover:text-[var(--accent)]"
     >
       {icon}
     </button>

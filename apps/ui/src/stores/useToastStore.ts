@@ -1,8 +1,8 @@
 import { create } from "zustand";
 
-export type ToastLevel = "info" | "success" | "warn" | "error";
+type ToastLevel = "info" | "success" | "warn" | "error";
 
-export type ToastAction = {
+type ToastAction = {
   label: string;
   run: () => void | Promise<void>;
 };
