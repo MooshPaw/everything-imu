@@ -31,7 +31,6 @@ use device_traits::{
 };
 use futures_util::{FutureExt, Stream, StreamExt};
 use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
 use std::pin::Pin;
 use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, watch};
@@ -1046,11 +1045,25 @@ fn mac_from_addr(addr: &str) -> Option<[u8; 6]> {
     }
 }
 
+/// Fallback MAC for JC2 when the BLE address could not be parsed. Uses
+/// FNV-1a so the same address string maps to the same MAC across app
+/// restarts and Rust toolchain versions — critical for the per-device
+/// settings store which keys off MAC.
 fn hash_to_mac(seed: &str) -> [u8; 6] {
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    seed.hash(&mut hasher);
-    let h = hasher.finish().to_le_bytes();
+    let h = fnv1a_64(seed.as_bytes()).to_le_bytes();
     [0x02, h[0], h[1], h[2], h[3], h[4]]
+}
+
+const FNV_OFFSET: u64 = 0xcbf29ce484222325;
+const FNV_PRIME: u64 = 0x00000100000001b3;
+
+fn fnv1a_64(bytes: &[u8]) -> u64 {
+    let mut hash = FNV_OFFSET;
+    for &b in bytes {
+        hash ^= b as u64;
+        hash = hash.wrapping_mul(FNV_PRIME);
+    }
+    hash
 }
 
 #[cfg(test)]

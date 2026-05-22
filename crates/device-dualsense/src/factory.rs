@@ -202,10 +202,55 @@ impl DualSenseFactory {
     }
 }
 
+/// Deterministic locally-administered MAC derived from the controller's
+/// USB serial. FNV-1a so the same serial maps to the same MAC across
+/// app restarts and Rust toolchain versions — the per-device settings
+/// store keys off MAC and silently loses settings if this drifts.
 fn mac_from_serial(serial: &str) -> [u8; 6] {
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    use std::hash::{Hash, Hasher};
-    serial.hash(&mut hasher);
-    let h = hasher.finish().to_le_bytes();
+    let h = fnv1a_64(serial.as_bytes()).to_le_bytes();
     [0x02, h[0], h[1], h[2], h[3], h[4]]
+}
+
+const FNV_OFFSET: u64 = 0xcbf29ce484222325;
+const FNV_PRIME: u64 = 0x00000100000001b3;
+
+fn fnv1a_64(bytes: &[u8]) -> u64 {
+    let mut hash = FNV_OFFSET;
+    for &b in bytes {
+        hash ^= b as u64;
+        hash = hash.wrapping_mul(FNV_PRIME);
+    }
+    hash
+}
+
+#[cfg(test)]
+mod tests {
+    use super::mac_from_serial;
+
+    #[test]
+    fn mac_is_deterministic_across_calls() {
+        let a = mac_from_serial("AA:BB:CC:DD:EE:FF");
+        let b = mac_from_serial("AA:BB:CC:DD:EE:FF");
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn mac_is_locally_administered() {
+        let m = mac_from_serial("AA:BB:CC:DD:EE:FF");
+        assert_eq!(m[0] & 0x02, 0x02, "locally-administered bit must be set");
+        assert_eq!(m[0] & 0x01, 0x00, "must not be multicast");
+    }
+
+    #[test]
+    fn distinct_serials_yield_distinct_macs() {
+        let a = mac_from_serial("AA:BB:CC:DD:EE:FF");
+        let b = mac_from_serial("11:22:33:44:55:66");
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn fnv1a_matches_reference_vector() {
+        // Reference FNV-1a("foobar") = 0x85944171f73967e8 (known test vector)
+        assert_eq!(super::fnv1a_64(b"foobar"), 0x85944171f73967e8);
+    }
 }

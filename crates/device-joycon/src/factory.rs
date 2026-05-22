@@ -138,7 +138,18 @@ impl JoyconFactory {
                     }
                 };
 
-                let mac = mac_from_string(&format!("{serial}{path:?}"));
+                // Hash the device serial alone — the HID `path` is not
+                // stable across reconnects on Windows, so including it
+                // would invent a fresh MAC each session and break
+                // per-device settings persistence. If the serial is
+                // empty fall back to the path; both are then folded
+                // through the deterministic FNV-1a hasher below.
+                let mac_seed = if serial.is_empty() {
+                    format!("{path:?}")
+                } else {
+                    serial.clone()
+                };
+                let mac = mac_from_string(&mac_seed);
                 let is_usb = iface >= 0;
                 let dev = JoyCon1Device::new(device, kind, is_usb, serial.clone(), mac);
                 let meta = dev.metadata().clone();
@@ -236,7 +247,12 @@ impl JoyconFactory {
                 None => continue,
             };
             let serial = i.serial_number().unwrap_or("").to_string();
-            let mac = mac_from_string(&format!("{serial}{:?}", i.path()));
+            let mac_seed = if serial.is_empty() {
+                format!("{:?}", i.path())
+            } else {
+                serial.clone()
+            };
+            let mac = mac_from_string(&mac_seed);
             out.push(PairedJoycon {
                 kind,
                 pid: pid_value,
@@ -269,10 +285,23 @@ impl JoyconFactory {
     }
 }
 
+/// Deterministic locally-administered MAC derived from a stable device
+/// string. Uses FNV-1a 64-bit so the output is the same across Rust
+/// toolchain versions and across app restarts — a critical invariant
+/// for the per-device settings store which keys off MAC.
 fn mac_from_string(s: &str) -> [u8; 6] {
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    use std::hash::{Hash, Hasher};
-    s.hash(&mut hasher);
-    let h = hasher.finish().to_le_bytes();
+    let h = fnv1a_64(s.as_bytes()).to_le_bytes();
     [0x02, h[0], h[1], h[2], h[3], h[4]]
+}
+
+const FNV_OFFSET: u64 = 0xcbf29ce484222325;
+const FNV_PRIME: u64 = 0x00000100000001b3;
+
+fn fnv1a_64(bytes: &[u8]) -> u64 {
+    let mut hash = FNV_OFFSET;
+    for &b in bytes {
+        hash ^= b as u64;
+        hash = hash.wrapping_mul(FNV_PRIME);
+    }
+    hash
 }

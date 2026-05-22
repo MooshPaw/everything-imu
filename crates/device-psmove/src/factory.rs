@@ -192,10 +192,23 @@ impl PsMoveFactory {
     }
 }
 
+/// Deterministic locally-administered MAC derived from the PSMove
+/// controller's HID serial. FNV-1a keeps the output stable across
+/// app restarts and Rust toolchain versions — the per-device settings
+/// store keys off MAC.
 fn mac_from_serial(serial: &str) -> [u8; 6] {
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    use std::hash::{Hash, Hasher};
-    serial.hash(&mut hasher);
-    let h = hasher.finish().to_le_bytes();
+    let h = fnv1a_64(serial.as_bytes()).to_le_bytes();
     [0x02, h[0], h[1], h[2], h[3], h[4]]
+}
+
+const FNV_OFFSET: u64 = 0xcbf29ce484222325;
+const FNV_PRIME: u64 = 0x00000100000001b3;
+
+fn fnv1a_64(bytes: &[u8]) -> u64 {
+    let mut hash = FNV_OFFSET;
+    for &b in bytes {
+        hash ^= b as u64;
+        hash = hash.wrapping_mul(FNV_PRIME);
+    }
+    hash
 }
