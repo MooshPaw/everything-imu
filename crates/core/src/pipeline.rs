@@ -330,11 +330,42 @@ impl Pipeline {
         let gyr_ts = 1.0 / meta.capabilities.native_imu_rate_hz as f64;
         let mut fusion = FilterImpl::new(config.fusion, gyr_ts);
         if let Some(bias) = bias_store.load_bias(&meta.id) {
-            fusion.set_bias_estimate(bias, Some(0.01));
+            // VQF's default biasClip is 2 deg/s. A stored bias whose magnitude
+            // is at (or extremely near) that cap on any axis is almost
+            // certainly saturated garbage from a previous session that ran
+            // with a noisy gyro: VQF gave up at the clip ceiling, that value
+            // got persisted on shutdown, and reseeding it locks the next
+            // session at the same ceiling — a self-reinforcing loop that
+            // produces phantom yaw drift on devices without a magnetometer.
+            // Treat anything ≥ 1.9 deg/s as suspect and discard.
+            const BIAS_CAP_DPS: f64 = 1.9;
+            let bias_dps = [
+                bias[0].to_degrees(),
+                bias[1].to_degrees(),
+                bias[2].to_degrees(),
+            ];
+            let saturated = bias_dps.iter().any(|v| v.abs() >= BIAS_CAP_DPS);
+            if saturated {
+                tracing::warn!(
+                    id = %meta.id,
+                    bias_dps = ?bias_dps,
+                    cap_dps = BIAS_CAP_DPS,
+                    "stored bias saturated near VQF biasClip; discarding to break self-reinforcing drift loop"
+                );
+            } else {
+                fusion.set_bias_estimate(bias, Some(0.01));
+                tracing::info!(
+                    id = %meta.id,
+                    algo = config.fusion.to_setting(),
+                    bias_rad_s = ?bias,
+                    bias_dps = ?bias_dps,
+                    "seeded fusion bias from store",
+                );
+            }
+        } else {
             tracing::info!(
                 id = %meta.id,
-                algo = config.fusion.to_setting(),
-                "seeded fusion bias from store",
+                "no stored fusion bias; VQF starts from zero"
             );
         }
         tracing::info!(
@@ -618,6 +649,22 @@ impl Pipeline {
 
     fn persist_bias(&self) {
         let bias = self.fusion.bias_estimate();
+        // Mirror the load-side guard: never persist a bias that is at or
+        // near VQF's biasClip ceiling. Such values are saturation artifacts,
+        // not real per-unit gyro offsets, and re-seeding them on the next
+        // session would lock VQF at the cap and produce phantom yaw drift.
+        const BIAS_CAP_DPS: f64 = 1.9;
+        let saturated = bias
+            .iter()
+            .any(|v| v.to_degrees().abs() >= BIAS_CAP_DPS);
+        if saturated {
+            tracing::debug!(
+                id = %self.meta.id,
+                bias_dps = ?[bias[0].to_degrees(), bias[1].to_degrees(), bias[2].to_degrees()],
+                "skipping bias persistence: saturated estimate (not a real per-unit offset)"
+            );
+            return;
+        }
         self.bias_store.store_bias(&self.meta.id, bias);
         tracing::debug!(id = %self.meta.id, "bias persisted");
     }
