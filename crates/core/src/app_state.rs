@@ -192,6 +192,22 @@ impl AppState {
 
     /// Live-update yaw rotation offset (degrees). Takes effect on the
     /// next IMU batch.
+    /// Live-update the per-device gyro scale. Takes effect on the next IMU
+    /// batch — no reconnect needed.
+    pub async fn set_gyro_scale(&self, mac: [u8; 6], scale: f32) -> bool {
+        if !scale.is_finite() || scale <= 0.0 {
+            return false;
+        }
+        let devices = self.devices.read().await;
+        let Some(h) = devices.values().find(|h| h.metadata.id.mac == mac) else {
+            return false;
+        };
+        let mut cfg = *h.config_tx.borrow();
+        cfg.gyro_scale = scale;
+        h.config_tx.send_replace(cfg);
+        true
+    }
+
     pub async fn set_rotation_offset_deg(&self, mac: [u8; 6], deg: f32) -> bool {
         let devices = self.devices.read().await;
         let Some(h) = devices.values().find(|h| h.metadata.id.mac == mac) else {
@@ -451,11 +467,17 @@ fn pipeline_config_from_settings(settings: &dyn SettingsStore, id: &DeviceId) ->
         .map(|s| s == "1" || s.eq_ignore_ascii_case("true"))
         .unwrap_or(mag_calibration.is_some());
     let rotation_offset_deg = settings.get_rotation_offset_deg(id);
+    let gyro_scale = settings
+        .get(&format!("gyro_scale:{mac_key}"))
+        .and_then(|s| s.parse::<f32>().ok())
+        .filter(|v| v.is_finite() && *v > 0.0)
+        .unwrap_or(1.0);
     PipelineConfig {
         fusion,
         mounting,
         magnetometer_enabled,
         rotation_offset_deg,
+        gyro_scale,
         mag_calibration,
     }
 }

@@ -77,6 +77,7 @@ export const resources = {
         orientation: "Orientation",
         reset_actions: "Reset actions",
         rotation_offset: "Rotation offset",
+        gyro_scale: "Gyro scale",
         per_device_config: "Per-device configuration",
         bridge_latency: "Bridge latency",
         gyroscope: "Gyroscope (rad/s)",
@@ -101,6 +102,7 @@ export const resources = {
         rename: "Rename",
         hide: "Hide",
         save: "Save",
+        reset: "Reset",
         undo: "Undo",
         unhide_count_one: "{{count}} hidden — show",
         unhide_count_other: "{{count}} hidden — show all",
@@ -160,6 +162,8 @@ export const resources = {
           "This device has no magnetometer. Yaw relies on gyro integration and the on-device reset gestures.",
         rotation_offset:
           "Offset is applied client-side to outgoing rotation packets. Body assignment and mounting model live on SlimeVR-Server.",
+        gyro_scale:
+          "Multiplicative gyro scale applied before fusion. Use 1.00× unless the tracker over- or under-rotates after a full reset.",
         broadcast_actions:
           "Sends to all {{count}} active tracker. Body model and skeleton live on SlimeVR-Server.",
         broadcast_actions_plural:
@@ -342,6 +346,23 @@ export const resources = {
         toast_paused: "Bridge paused — no packets emitted",
         toast_resumed: "Bridge resumed — emitting packets",
       },
+      updater: {
+        title: "Updates",
+        check: "Check for updates",
+        checking: "Checking…",
+        apply: "Install update",
+        applying: "Installing…",
+        available: "Update available — {{current}} → {{latest}}",
+        up_to_date: "Up to date ({{current}})",
+      },
+      steam_blacklist: {
+        title: "Steam is grabbing your controllers",
+        body: "Steam Input intercepts Joy-Con and Switch Pro Controllers before this app can see them. Click Fix to add them to Steam's controller blacklist.",
+        restart_hint: "Restart Steam after applying the fix.",
+        fix: "Fix",
+        fixing: "Fixing…",
+        fixed: "Steam controller blacklist updated — restart Steam.",
+      },
       cinema: {
         title: "Cinema mode",
         worst_p95: "worst p95",
@@ -482,6 +503,7 @@ export const resources = {
         orientation: "Orientación",
         reset_actions: "Reset",
         rotation_offset: "Offset de rotación",
+        gyro_scale: "Escala del giroscopio",
         per_device_config: "Configuración por dispositivo",
         bridge_latency: "Latencia del puente",
         gyroscope: "Giroscopio (rad/s)",
@@ -506,6 +528,7 @@ export const resources = {
         rename: "Renombrar",
         hide: "Ocultar",
         save: "Guardar",
+        reset: "Reiniciar",
         undo: "Deshacer",
         unhide_count_one: "{{count}} oculto — mostrar",
         unhide_count_other: "{{count}} ocultos — mostrar todos",
@@ -565,6 +588,8 @@ export const resources = {
           "Este dispositivo no tiene magnetómetro. El yaw depende de la integración del giroscopio y de los gestos de reinicio del dispositivo.",
         rotation_offset:
           "El offset se aplica en cliente sobre los paquetes de rotación salientes. La asignación corporal y el modelo de montaje viven en SlimeVR-Server.",
+        gyro_scale:
+          "Escala multiplicativa del giroscopio aplicada antes de la fusión. Dejá 1.00× salvo que el tracker rote de más o de menos después de un reset completo.",
         broadcast_actions:
           "Envía a {{count}} tracker activo. El modelo corporal y esqueleto viven en SlimeVR-Server.",
         broadcast_actions_plural:
@@ -748,6 +773,23 @@ export const resources = {
         resume: "Reanudar emisión del puente",
         toast_paused: "Puente pausado — sin paquetes emitidos",
         toast_resumed: "Puente reanudado — emitiendo paquetes",
+      },
+      updater: {
+        title: "Actualizaciones",
+        check: "Buscar actualizaciones",
+        checking: "Buscando…",
+        apply: "Instalar actualización",
+        applying: "Instalando…",
+        available: "Actualización disponible — {{current}} → {{latest}}",
+        up_to_date: "Al día ({{current}})",
+      },
+      steam_blacklist: {
+        title: "Steam está secuestrando tus controles",
+        body: "Steam Input intercepta los Joy-Con y el Switch Pro antes de que esta app pueda verlos. Pulsá Arreglar para agregarlos a la lista negra de controles de Steam.",
+        restart_hint: "Reiniciá Steam después de aplicar el arreglo.",
+        fix: "Arreglar",
+        fixing: "Arreglando…",
+        fixed: "Lista negra de Steam actualizada — reiniciá Steam.",
       },
       cinema: {
         title: "Modo cine",

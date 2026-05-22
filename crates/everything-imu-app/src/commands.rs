@@ -217,6 +217,10 @@ pub struct PerDeviceSettingsDto {
     pub mounting: MountingOrientationDto,
     pub magnetometer_enabled: bool,
     pub rotation_offset_deg: f32,
+    /// Per-device multiplicative gyro scale (1.0 = identity). Persisted as
+    /// the `gyro_scale:<mac>` setting; applied pre-fusion so any change
+    /// shows up in the next IMU batch.
+    pub gyro_scale: f32,
     /// Optional user-provided label ("right shin", "head") — purely
     /// informational on the bridge side; SlimeVR-Server owns body
     /// assignment and would override anything we put in tracker_position.
@@ -270,6 +274,12 @@ pub async fn get_per_device_settings(
         ))?
         .and_then(|s| s.parse().ok())
         .unwrap_or(0.0_f32);
+    let gyro_scale = handle
+        .db
+        .get_setting(&format!("gyro_scale:{mk}"))?
+        .and_then(|s| s.parse::<f32>().ok())
+        .filter(|v| v.is_finite() && *v > 0.0)
+        .unwrap_or(1.0_f32);
     let label = handle
         .db
         .get_setting(&format!("tracker_label:{mk}"))?
@@ -293,11 +303,32 @@ pub async fn get_per_device_settings(
         mounting,
         magnetometer_enabled,
         rotation_offset_deg,
+        gyro_scale,
         label,
         hidden,
         display_order,
         group,
     })
+}
+
+/// Persist + live-apply the per-device gyroscope scale. `scale` is a raw
+/// multiplier (1.0 = identity); the UI clamps to a sane range before
+/// invoking. Rejects non-finite / non-positive values rather than silently
+/// disabling the gyroscope.
+#[tauri::command]
+#[specta::specta]
+pub async fn set_gyro_scale(
+    handle: State<'_, AppHandle>,
+    mac: [u8; 6],
+    scale: f32,
+) -> Result<(), IpcError> {
+    if !scale.is_finite() || scale <= 0.0 {
+        return Err(IpcError::Invalid("gyro_scale must be finite and > 0".into()));
+    }
+    let key = format!("gyro_scale:{}", mac_key(mac));
+    handle.db.set_setting(&key, &scale.to_string())?;
+    handle.state.set_gyro_scale(mac, scale).await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -1016,6 +1047,46 @@ pub async fn clear_mag_calibration(
     handle.state.set_mag_calibration(mac, None).await;
     tracing::info!(mac = ?mac, "mag calibration cleared");
     Ok(())
+}
+
+/// Look up the latest GitHub release and report whether an update is
+/// available. Returns the running version even when up-to-date so the UI
+/// can show "you're on the latest build".
+#[tauri::command]
+#[specta::specta]
+pub async fn check_for_update() -> Result<crate::updater::UpdateInfo, IpcError> {
+    crate::updater::check()
+        .await
+        .map_err(|e| IpcError::Internal(e.to_string()))
+}
+
+/// Download and install the latest release. The Tauri binary is replaced
+/// in place; the UI should prompt the user to restart afterwards.
+#[tauri::command]
+#[specta::specta]
+pub async fn apply_update() -> Result<crate::updater::UpdateInfo, IpcError> {
+    crate::updater::apply()
+        .await
+        .map_err(|e| IpcError::Internal(e.to_string()))
+}
+
+/// Inspect Steam's controller_blacklist to detect when Steam Input is
+/// grabbing Joy-Con / Switch Pro HID devices. The UI uses this to show a
+/// warning banner with a 1-click fix.
+#[tauri::command]
+#[specta::specta]
+pub async fn steam_blacklist_check() -> Result<crate::steam_blacklist::SteamBlacklistStatus, IpcError>
+{
+    Ok(crate::steam_blacklist::check())
+}
+
+/// Append the Joy-Con + Switch Pro VID/PID pairs to Steam's
+/// controller_blacklist and persist the patched config.vdf. Steam must be
+/// restarted for the change to take effect — surface that in the UI toast.
+#[tauri::command]
+#[specta::specta]
+pub async fn steam_blacklist_apply_fix() -> Result<(), IpcError> {
+    crate::steam_blacklist::apply_fix().map_err(|e| IpcError::Internal(e.to_string()))
 }
 
 fn yaw_deg_from_quat(q: [f32; 4]) -> f32 {

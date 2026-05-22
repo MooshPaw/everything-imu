@@ -7,9 +7,11 @@ pub mod events;
 pub mod haptics;
 pub mod logging;
 pub mod state;
+pub mod steam_blacklist;
 pub mod supervisor_boot;
 pub mod tracker_emitter;
 pub mod tray;
+pub mod updater;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -206,6 +208,7 @@ pub fn build_specta() -> tauri_specta::Builder<tauri::Wry> {
             commands::set_setting,
             commands::request_reset,
             commands::set_device_rotation_offset,
+            commands::set_gyro_scale,
             commands::get_log_buffer,
             commands::restart_synthetic,
             commands::get_connection_status,
@@ -235,6 +238,10 @@ pub fn build_specta() -> tauri_specta::Builder<tauri::Wry> {
             commands::clear_mag_calibration,
             haptics::get_haptic_config,
             haptics::set_haptic_config,
+            commands::steam_blacklist_check,
+            commands::steam_blacklist_apply_fix,
+            commands::check_for_update,
+            commands::apply_update,
         ])
         .events(tauri_specta::collect_events![
             events::TrackerUpdate,

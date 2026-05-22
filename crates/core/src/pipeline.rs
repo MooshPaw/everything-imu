@@ -108,7 +108,7 @@ impl MountingOrientation {
 
 /// Configuration provided to a freshly-spawned pipeline. All values are
 /// derived from per-device settings stored in the persistence DB.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct PipelineConfig {
     pub fusion: FusionAlgo,
     pub mounting: MountingOrientation,
@@ -117,10 +117,30 @@ pub struct PipelineConfig {
     /// quaternion *after* the mounting preset. Useful for fine-tuning a
     /// tracker that's mounted slightly off-angle. Live-swappable.
     pub rotation_offset_deg: f32,
+    /// Per-device multiplicative scale applied to the raw gyroscope vector
+    /// *before* it reaches the fusion filter. 1.0 is no-op; lower values
+    /// soften overshoot on hot units, higher values compensate for
+    /// firmware that under-reports angular rate. Range clamped in the UI
+    /// to roughly 0.5..=2.0; values outside that are still respected but
+    /// likely indicate a calibration problem.
+    pub gyro_scale: f32,
     /// Hard-iron calibration for the magnetometer. When `None`, the magnetometer
     /// is *not* fed to fusion even if `magnetometer_enabled` is true — an
     /// uncalibrated magnetometer reads worse than no magnetometer at all.
     pub mag_calibration: Option<MagCalibration>,
+}
+
+impl Default for PipelineConfig {
+    fn default() -> Self {
+        Self {
+            fusion: FusionAlgo::default(),
+            mounting: MountingOrientation::default(),
+            magnetometer_enabled: false,
+            rotation_offset_deg: 0.0,
+            gyro_scale: 1.0,
+            mag_calibration: None,
+        }
+    }
 }
 
 /// Edge-triggered command driving a magnetometer calibration session. Sent
@@ -534,8 +554,12 @@ const BIAS_CAP_DPS: f64 = 1.0;
                             }
                         }
                     }
-                    let gyro_vqf =
-                        coord::jsl_to_vqf_body(Vector3::new(s.gyro[0], s.gyro[1], s.gyro[2]));
+                    let gs = cfg.gyro_scale;
+                    let gyro_vqf = coord::jsl_to_vqf_body(Vector3::new(
+                        s.gyro[0] * gs,
+                        s.gyro[1] * gs,
+                        s.gyro[2] * gs,
+                    ));
                     let accel_vqf =
                         coord::jsl_to_vqf_body(Vector3::new(s.accel[0], s.accel[1], s.accel[2]));
                     // Feed the magnetometer to fusion only when enabled AND

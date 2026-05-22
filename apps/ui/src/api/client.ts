@@ -24,6 +24,8 @@ export type {
   MountingOrientationDto,
   PerDeviceSettingsDto,
   SettingsDto,
+  SteamBlacklistStatus,
   TrackerSnapshot,
+  UpdateInfo,
 } from "./bindings";
 export { events };

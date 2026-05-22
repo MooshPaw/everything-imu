@@ -253,6 +253,7 @@ export function SettingsPage() {
             <Row label={t("labels.protocol")} value={t("protocol_value")} />
           </div>
           <p className="pt-2 text-[11px] text-[var(--fg-muted)]">{t("hints.about_app")}</p>
+          <UpdaterPanel />
         </Card>
       </div>
     </div>
@@ -364,6 +365,77 @@ function LocalePicker() {
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+/// Self-update entry. Calls the backend GitHub-release checker and, when a
+/// newer release exists, lets the user download + swap the binary in place.
+/// The card itself stays mounted in the About section so users always have
+/// a one-click way to check, regardless of whether an update is pending.
+function UpdaterPanel() {
+  const { t } = useTranslation();
+  const [info, setInfo] = useState<{
+    current: string;
+    latest: string;
+    update_available: boolean;
+  } | null>(null);
+  const [busy, setBusy] = useState<"check" | "apply" | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function check() {
+    setBusy("check");
+    setErr(null);
+    const res = await api.checkForUpdate();
+    setBusy(null);
+    if (res.status === "ok") setInfo(res.data);
+    else setErr("message" in res.error ? res.error.message : res.error.type);
+  }
+
+  async function apply() {
+    setBusy("apply");
+    setErr(null);
+    const res = await api.applyUpdate();
+    setBusy(null);
+    if (res.status === "ok") setInfo({ ...res.data, update_available: false });
+    else setErr("message" in res.error ? res.error.message : res.error.type);
+  }
+
+  return (
+    <div className="mt-3 flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[11px] uppercase tracking-[0.12em] text-[var(--fg-section-header)]">
+          {t("updater.title")}
+        </span>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={busy !== null}
+            onClick={() => void check()}
+            className="rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] px-3 py-1 text-xs text-[var(--fg-secondary)] hover:bg-[var(--warn-soft)] hover:text-[var(--accent)] disabled:opacity-50"
+          >
+            {busy === "check" ? t("updater.checking") : t("updater.check")}
+          </button>
+          {info?.update_available && (
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={() => void apply()}
+              className="rounded-[var(--radius-sm)] bg-[var(--accent)] px-3 py-1 text-xs font-semibold text-[var(--fg-inverse)] hover:bg-[var(--accent-bright)] disabled:opacity-50"
+            >
+              {busy === "apply" ? t("updater.applying") : t("updater.apply")}
+            </button>
+          )}
+        </div>
+      </div>
+      {info && (
+        <span className="text-[11px] text-[var(--fg-muted)]">
+          {info.update_available
+            ? t("updater.available", { current: info.current, latest: info.latest })
+            : t("updater.up_to_date", { current: info.current })}
+        </span>
+      )}
+      {err && <span className="text-[11px] text-[var(--warn)]">{err}</span>}
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import type { DeviceMetadataDto } from "../api/client";
 import { api } from "../api/client";
 import { EmptyState } from "../components/EmptyState";
+import { SteamBlacklistBanner } from "../components/SteamBlacklistBanner";
 import { macHex, macKey as macKeyFn } from "../lib/macFormat";
 import { useDeviceStore } from "../stores/useDeviceStore";
 import { usePerDeviceSettingsStore } from "../stores/usePerDeviceSettingsStore";
@@ -106,6 +107,7 @@ export function DevicesPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <SteamBlacklistBanner />
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--fg-section-header)]">

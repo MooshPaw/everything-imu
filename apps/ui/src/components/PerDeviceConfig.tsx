@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { FusionAlgoDto, MountingOrientationDto, PerDeviceSettingsDto } from "../api/client";
 import { api } from "../api/client";
@@ -40,6 +40,28 @@ export function PerDeviceConfig({
     const res = await api.getPerDeviceSettings(mac);
     if (res.status === "ok") setSettings(res.data);
   }, [mac]);
+
+  /// Debounced autosave of the gyro scale slider. We persist on the
+  /// backend and live-apply to the running pipeline. `gyroScaleInitial`
+  /// suppresses the very first effect run so loading the persisted value
+  /// does not echo straight back to the backend.
+  const gyroScaleTimer = useRef<number | null>(null);
+  const gyroScaleInitial = useRef(true);
+  useEffect(() => {
+    const scale = settings?.gyro_scale;
+    if (scale == null) return;
+    if (gyroScaleInitial.current) {
+      gyroScaleInitial.current = false;
+      return;
+    }
+    if (gyroScaleTimer.current) window.clearTimeout(gyroScaleTimer.current);
+    gyroScaleTimer.current = window.setTimeout(() => {
+      void api.setGyroScale(mac, scale);
+    }, 300);
+    return () => {
+      if (gyroScaleTimer.current) window.clearTimeout(gyroScaleTimer.current);
+    };
+  }, [settings?.gyro_scale, mac]);
 
   useEffect(() => {
     void reload();
@@ -203,6 +225,36 @@ export function PerDeviceConfig({
             );
           })}
         </div>
+      </Section>
+
+      <Section label={t("labels.gyro_scale")}>
+        <div className="flex items-center gap-3">
+          <input
+            type="range"
+            min={0.5}
+            max={2.0}
+            step={0.01}
+            value={settings?.gyro_scale ?? 1.0}
+            onChange={(e) => {
+              const v = Number.parseFloat(e.target.value);
+              setSettings((prev) => (prev ? { ...prev, gyro_scale: v } : prev));
+            }}
+            className="flex-1 accent-[var(--accent)]"
+          />
+          <span className="metric-num w-14 text-right font-mono text-sm text-[var(--fg-primary)]">
+            {(settings?.gyro_scale ?? 1.0).toFixed(2)}×
+          </span>
+          <button
+            type="button"
+            onClick={() =>
+              setSettings((prev) => (prev ? { ...prev, gyro_scale: 1.0 } : prev))
+            }
+            className="rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] px-2 py-1 text-[10px] text-[var(--fg-secondary)] hover:bg-[var(--warn-soft)] hover:text-[var(--accent)]"
+          >
+            {t("actions.reset")}
+          </button>
+        </div>
+        <p className="text-[11px] text-[var(--fg-muted)]">{t("hints.gyro_scale")}</p>
       </Section>
 
       <Section label={t("labels.magnetometer")}>

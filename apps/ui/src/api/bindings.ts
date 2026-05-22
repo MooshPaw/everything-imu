@@ -55,6 +55,20 @@ async setDeviceRotationOffset(mac: [number, number, number, number, number, numb
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Persist + live-apply the per-device gyroscope scale. `scale` is a raw
+ * multiplier (1.0 = identity); the UI clamps to a sane range before
+ * invoking. Rejects non-finite / non-positive values rather than silently
+ * disabling the gyroscope.
+ */
+async setGyroScale(mac: [number, number, number, number, number, number], scale: number) : Promise<Result<null, IpcError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_gyro_scale", { mac, scale }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async getLogBuffer() : Promise<Result<LogEntryDto[], IpcError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_log_buffer") };
@@ -341,6 +355,57 @@ async setHapticConfig(config: HapticConfigDto) : Promise<Result<null, IpcError>>
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * Inspect Steam's controller_blacklist to detect when Steam Input is
+ * grabbing Joy-Con / Switch Pro HID devices. The UI uses this to show a
+ * warning banner with a 1-click fix.
+ */
+async steamBlacklistCheck() : Promise<Result<SteamBlacklistStatus, IpcError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("steam_blacklist_check") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Append the Joy-Con + Switch Pro VID/PID pairs to Steam's
+ * controller_blacklist and persist the patched config.vdf. Steam must be
+ * restarted for the change to take effect — surface that in the UI toast.
+ */
+async steamBlacklistApplyFix() : Promise<Result<null, IpcError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("steam_blacklist_apply_fix") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Look up the latest GitHub release and report whether an update is
+ * available. Returns the running version even when up-to-date so the UI
+ * can show "you're on the latest build".
+ */
+async checkForUpdate() : Promise<Result<UpdateInfo, IpcError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("check_for_update") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Download and install the latest release. The Tauri binary is replaced
+ * in place; the UI should prompt the user to restart afterwards.
+ */
+async applyUpdate() : Promise<Result<UpdateInfo, IpcError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("apply_update") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -454,6 +519,12 @@ export type MountingOrientationDto = "identity" | "left_side" | "right_side" | "
 export type OutputProfileDto = { led_mask: number; rumble_enabled: boolean }
 export type PerDeviceSettingsDto = { fusion: FusionAlgoDto; mounting: MountingOrientationDto; magnetometer_enabled: boolean; rotation_offset_deg: number; 
 /**
+ * Per-device multiplicative gyro scale (1.0 = identity). Persisted as
+ * the `gyro_scale:<mac>` setting; applied pre-fusion so any change
+ * shows up in the next IMU batch.
+ */
+gyro_scale: number; 
+/**
  * Optional user-provided label ("right shin", "head") — purely
  * informational on the bridge side; SlimeVR-Server owns body
  * assignment and would override anything we put in tracker_position.
@@ -483,8 +554,29 @@ export type SettingsDto = { slime_server_addr: string; log_filter: string; theme
  * tray menu's Quit entry. Default false to match pre-tray behavior.
  */
 close_to_tray: boolean }
+/**
+ * Result surfaced to the UI: which devices need to be blacklisted and a
+ * human-readable hint. `needs_fix` drives whether a "Fix" button shows.
+ */
+export type SteamBlacklistStatus = { 
+/**
+ * True only when Steam is installed AND at least one tracked device
+ * (Joy-Con or Switch Pro) is missing from `controller_blacklist`.
+ */
+needs_fix: boolean; 
+/**
+ * True when Steam install was not detected at all — UI should hide
+ * the banner entirely in that case.
+ */
+steam_not_found: boolean; 
+/**
+ * Human-readable status, populated even when needs_fix is false so the
+ * UI can show "All clear" once the user has fixed the config.
+ */
+info: string }
 export type TrackerSnapshot = { mac: [number, number, number, number, number, number]; serial: string; quat_xyzw: [number, number, number, number]; battery_fraction: number; rate_hz: number }
 export type TrackerUpdate = { trackers: TrackerSnapshot[] }
+export type UpdateInfo = { current: string; latest: string; url: string; update_available: boolean }
 
 /** tauri-specta globals **/
 
