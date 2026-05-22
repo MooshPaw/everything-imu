@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowsClockwise, Crosshair, Target } from "@phosphor-icons/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
@@ -36,6 +36,10 @@ export function TrackerDetailPage() {
   const [rotationDeg, setRotationDeg] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [rotationStatus, setRotationStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const rotationSaveTimer = useRef<number | null>(null);
+  const rotationSavedTimer = useRef<number | null>(null);
+  const rotationInitial = useRef(true);
 
   const macBytes = useMemo<[number, number, number, number, number, number] | null>(() => {
     if (snap) return snap.mac;
@@ -68,23 +72,34 @@ export function TrackerDetailPage() {
     }
   }
 
-  async function applyRotation() {
+  // Autosave: debounced commit of rotation offset every time the slider
+  // (or a preset button) updates `rotationDeg`. Skips the first render so
+  // the initial 0° default does not echo to the backend.
+  useEffect(() => {
     if (!macBytes) return;
-    setBusy("rotation");
-    setMsg(null);
-    try {
-      const res = await api.setDeviceRotationOffset(macBytes, rotationDeg);
-      setMsg(
-        res.status === "ok"
-          ? t("msg.rotation_applied")
-          : t("msg.error_generic", { err: JSON.stringify(res.error) }),
-      );
-    } catch (e) {
-      setMsg(t("msg.error_generic", { err: String(e) }));
-    } finally {
-      setBusy(null);
+    if (rotationInitial.current) {
+      rotationInitial.current = false;
+      return;
     }
-  }
+    if (rotationSaveTimer.current) window.clearTimeout(rotationSaveTimer.current);
+    setRotationStatus("saving");
+    rotationSaveTimer.current = window.setTimeout(() => {
+      void (async () => {
+        const res = await api.setDeviceRotationOffset(macBytes, rotationDeg);
+        if (res.status === "ok") {
+          setRotationStatus("saved");
+          if (rotationSavedTimer.current) window.clearTimeout(rotationSavedTimer.current);
+          rotationSavedTimer.current = window.setTimeout(() => setRotationStatus("idle"), 1200);
+        } else {
+          setRotationStatus("idle");
+          setMsg(t("msg.error_generic", { err: JSON.stringify(res.error) }));
+        }
+      })();
+    }, 400);
+    return () => {
+      if (rotationSaveTimer.current) window.clearTimeout(rotationSaveTimer.current);
+    };
+  }, [rotationDeg, macBytes, t]);
 
   if (!macBytes) {
     return (
@@ -230,6 +245,19 @@ export function TrackerDetailPage() {
           </TileTitled>
 
           <TileTitled title={t("pages.rotation_offset")}>
+            <div className="flex items-center justify-between gap-3 pb-2">
+              <span className="text-[11px] text-[var(--fg-muted)]">{t("hints.autosave")}</span>
+              <span
+                aria-live="polite"
+                className="text-[11px] uppercase tracking-[0.12em] text-[var(--fg-muted)]"
+              >
+                {rotationStatus === "saving"
+                  ? t("hints.saving")
+                  : rotationStatus === "saved"
+                    ? t("msg.generic_saved")
+                    : ""}
+              </span>
+            </div>
             <div className="flex items-center gap-3">
               <input
                 type="range"
@@ -255,14 +283,6 @@ export function TrackerDetailPage() {
                   {d}°
                 </button>
               ))}
-              <button
-                type="button"
-                disabled={busy !== null}
-                onClick={() => void applyRotation()}
-                className="ml-auto rounded-[var(--radius-sm)] bg-[var(--accent)] px-3 py-1 text-xs font-semibold text-[var(--fg-inverse)] transition-colors hover:bg-[var(--accent-bright)] disabled:opacity-50"
-              >
-                {busy === "rotation" ? t("actions.applying") : t("actions.apply")}
-              </button>
             </div>
             <div className="pt-2 text-[11px] text-[var(--fg-muted)]">
               {t("hints.rotation_offset")}
