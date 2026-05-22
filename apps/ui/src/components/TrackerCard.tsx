@@ -1,4 +1,4 @@
-import { Check, Crosshair, EyeSlash, PencilSimple, X } from "@phosphor-icons/react";
+import { Crosshair, EyeSlash, PencilSimple, X } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TrackerSnapshot } from "../api/client";
@@ -111,10 +111,11 @@ export function TrackerCard({ snap, targetHz }: { snap: TrackerSnapshot; targetH
                 value={draftLabel}
                 onChange={(e) => setDraftLabel(e.target.value)}
                 onClick={(e) => e.preventDefault()}
+                onBlur={() => void commitEdit()}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    void commitEdit();
+                    (e.currentTarget as HTMLInputElement).blur();
                   } else if (e.key === "Escape") {
                     e.preventDefault();
                     setEditing(false);
@@ -126,20 +127,9 @@ export function TrackerCard({ snap, targetHz }: { snap: TrackerSnapshot; targetH
               />
               <button
                 type="button"
-                aria-label={t("actions.save")}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  void commitEdit();
-                }}
-                className="rounded-[var(--radius-sm)] p-1 text-[var(--success)] hover:bg-[var(--accent-soft)]"
-              >
-                <Check size={14} weight="bold" />
-              </button>
-              <button
-                type="button"
                 aria-label={t("window.dismiss")}
-                onClick={(e) => {
+                onMouseDown={(e) => {
+                  // mousedown fires before blur — cancel without committing.
                   e.preventDefault();
                   e.stopPropagation();
                   setEditing(false);

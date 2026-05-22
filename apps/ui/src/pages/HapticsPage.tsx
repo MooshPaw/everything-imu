@@ -1,5 +1,5 @@
 import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { HapticConfigDto, HapticModeDto, HapticRuleDto } from "../api/client";
 import { api } from "../api/client";
@@ -28,7 +28,10 @@ export function HapticsPage() {
   const configLoaded = useHapticStore((s) => s.configLoaded);
   const pushToast = useToastStore((s) => s.push);
 
-  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const saveTimer = useRef<number | null>(null);
+  const savedTimer = useRef<number | null>(null);
+  const initialLoad = useRef(true);
 
   const rumbleDevices = Object.values(devices).filter((d) => d.has_rumble);
 
@@ -40,6 +43,36 @@ export function HapticsPage() {
       if (res.status === "ok") setConfig(res.data);
     });
   }, [configLoaded, setConfig]);
+
+  // Autosave: debounced commit of every config mutation. Skips the very
+  // first render after fetch so loading the persisted config doesn't echo
+  // straight back to the backend.
+  useEffect(() => {
+    if (!config) return;
+    if (initialLoad.current) {
+      initialLoad.current = false;
+      return;
+    }
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    setStatus("saving");
+    saveTimer.current = window.setTimeout(() => {
+      void (async () => {
+        const res = await api.setHapticConfig(config);
+        if (res.status === "ok") {
+          setStatus("saved");
+          if (savedTimer.current) window.clearTimeout(savedTimer.current);
+          savedTimer.current = window.setTimeout(() => setStatus("idle"), 1200);
+        } else {
+          setStatus("idle");
+          const detail = "message" in res.error ? res.error.message : res.error.type;
+          pushToast({ level: "warn", title: t("haptics.title"), message: detail });
+        }
+      })();
+    }, 400);
+    return () => {
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    };
+  }, [config, pushToast, t]);
 
   if (!config) {
     return <div className="p-6 text-xs text-[var(--fg-muted)]">…</div>;
@@ -59,18 +92,6 @@ export function HapticsPage() {
 
   const removeRule = (idx: number) => patch({ rules: config.rules.filter((_, i) => i !== idx) });
 
-  const save = async () => {
-    setSaving(true);
-    const res = await api.setHapticConfig(config);
-    setSaving(false);
-    if (res.status === "ok") {
-      pushToast({ level: "success", title: t("haptics.saved"), message: "" });
-    } else {
-      const detail = "message" in res.error ? res.error.message : res.error.type;
-      pushToast({ level: "warn", title: t("haptics.title"), message: detail });
-    }
-  };
-
   return (
     <div className="flex flex-col gap-5">
       <header className="flex items-center justify-between gap-3">
@@ -80,14 +101,12 @@ export function HapticsPage() {
           </h2>
           <span className="text-[11px] text-[var(--fg-muted)]">{t("haptics.subtitle")}</span>
         </div>
-        <button
-          type="button"
-          onClick={save}
-          disabled={saving}
-          className="rounded-[var(--radius-sm)] bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-[var(--bg-base)] disabled:opacity-50"
+        <span
+          aria-live="polite"
+          className="text-[11px] uppercase tracking-[0.12em] text-[var(--fg-muted)]"
         >
-          {t("haptics.save")}
-        </button>
+          {status === "saving" ? t("hints.saving") : status === "saved" ? t("msg.generic_saved") : ""}
+        </span>
       </header>
 
       <Tile title={t("haptics.how_title")}>
