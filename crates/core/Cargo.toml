@@ -13,11 +13,13 @@ path = "src/lib.rs"
 
 [dependencies]
 device-traits = { path = "../device-traits" }
+osc-haptics = { path = "../osc-haptics" }
 slime-tracker = { path = "../slime-tracker" }
 imu-math = { path = "../imu-math" }
 imu-fusion = { path = "../imu-fusion" }
 nalgebra = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 tokio = { workspace = true, features = ["sync", "rt", "macros", "time", "net"] }
 async-trait = { workspace = true }
 thiserror = { workspace = true }

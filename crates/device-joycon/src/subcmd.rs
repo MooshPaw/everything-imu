@@ -17,6 +17,17 @@ pub fn build_report_0x80(opcode: u8) -> Vec<u8> {
     vec![0x80, opcode]
 }
 
+/// Rumble-only output report 0x10. `frame` is one side's 4-byte HD Rumble
+/// packet; both sides receive it for a single-motor buzz.
+pub fn build_report_0x10(packet_counter: u8, frame: [u8; 4]) -> Vec<u8> {
+    let mut buf = Vec::with_capacity(10);
+    buf.push(0x10);
+    buf.push(packet_counter & 0x0F);
+    buf.extend_from_slice(&frame);
+    buf.extend_from_slice(&frame);
+    buf
+}
+
 pub fn enable_imu(packet_counter: u8) -> Vec<u8> {
     build_report_0x01(packet_counter, 0x40, &[0x01])
 }
@@ -79,6 +90,17 @@ mod tests {
     fn report_0x80_minimal() {
         let p = build_report_0x80(0x02);
         assert_eq!(p, vec![0x80, 0x02]);
+    }
+
+    #[test]
+    fn report_0x10_packs_both_sides() {
+        let frame = [0x11, 0x22, 0x33, 0x44];
+        let p = build_report_0x10(0xA3, frame);
+        assert_eq!(p.len(), 10);
+        assert_eq!(p[0], 0x10);
+        assert_eq!(p[1], 0x03);
+        assert_eq!(&p[2..6], &frame);
+        assert_eq!(&p[6..10], &frame);
     }
 
     #[test]

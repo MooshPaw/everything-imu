@@ -5,6 +5,7 @@ import {
   type Icon as PhosphorIcon,
   Plugs,
   Pulse,
+  VibrateIcon,
 } from "@phosphor-icons/react";
 import { useTranslation } from "react-i18next";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -25,6 +26,7 @@ const PRIMARY: Item[] = [
   { to: "/", labelKey: "nav.dashboard", icon: House },
   { to: "/connection", labelKey: "nav.connection", icon: Pulse },
   { to: "/devices", labelKey: "nav.devices", icon: Plugs },
+  { to: "/haptics", labelKey: "nav.haptics", icon: VibrateIcon },
   { to: "/logs", labelKey: "nav.logs", icon: ListBullets },
 ];
 

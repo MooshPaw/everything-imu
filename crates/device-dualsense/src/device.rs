@@ -28,7 +28,8 @@ pub struct DualSenseDevice {
 struct OutputState {
     led_mask_4bit: u8,
     led_mask_5bit: u8,
-    rumble_on: bool,
+    /// Motor amplitude 0-255. DualSense/DS4 drive both motors at this value.
+    rumble: u8,
 }
 
 impl DualSenseDevice {
@@ -56,7 +57,7 @@ impl DualSenseDevice {
             output_state: OutputState {
                 led_mask_4bit: 0,
                 led_mask_5bit: 0,
-                rumble_on: false,
+                rumble: 0,
             },
             last_report_len: Arc::new(AtomicUsize::new(0)),
             reader: None,
@@ -149,8 +150,8 @@ impl Device for DualSenseDevice {
         self.write_output(self.output_state)
     }
 
-    async fn set_rumble(&mut self, on: bool) -> Result<(), DeviceError> {
-        self.output_state.rumble_on = on;
+    async fn set_rumble(&mut self, intensity: f32) -> Result<(), DeviceError> {
+        self.output_state.rumble = device_traits::rumble::to_u8(intensity);
         self.write_output(self.output_state)
     }
 }
@@ -227,7 +228,7 @@ fn build_ds5_bt_report(state: OutputState) -> Vec<u8> {
 fn fill_ds5_payload(payload: &mut [u8], state: OutputState) {
     payload[0] = 0xFF;
     payload[1] = 0xF7;
-    let motor = if state.rumble_on { 0x80 } else { 0x00 };
+    let motor = state.rumble;
     payload[2] = motor; // weak
     payload[3] = motor; // strong
     payload[38] = 0;
@@ -239,7 +240,7 @@ fn build_ds4_usb_report(state: OutputState) -> Vec<u8> {
     let mut report = vec![0u8; 32];
     report[0] = 0x05;
     report[1] = 0x07;
-    let motor = if state.rumble_on { 0x80 } else { 0x00 };
+    let motor = state.rumble;
     report[4] = motor; // weak
     report[5] = motor; // strong
     let [r, g, b] = ds4_led_rgb_from_mask(state.led_mask_4bit);
@@ -255,7 +256,7 @@ fn build_ds4_bt_report(state: OutputState) -> Vec<u8> {
     report[1] = 0xC0;
     report[2] = 0x20;
     report[3] = 0x07;
-    let motor = if state.rumble_on { 0x80 } else { 0x00 };
+    let motor = state.rumble;
     report[6] = motor; // weak
     report[7] = motor; // strong
     let [r, g, b] = ds4_led_rgb_from_mask(state.led_mask_4bit);
@@ -316,7 +317,7 @@ mod tests {
         let report = build_ds5_bt_report(OutputState {
             led_mask_4bit: 0,
             led_mask_5bit: 0b00100,
-            rumble_on: true,
+            rumble: 0x80,
         });
         assert_eq!(report.len(), 78);
         assert_eq!(report[0], 0x31);
@@ -333,7 +334,7 @@ mod tests {
         let report = build_ds4_usb_report(OutputState {
             led_mask_4bit: 0b0011,
             led_mask_5bit: 0,
-            rumble_on: true,
+            rumble: 0x80,
         });
         assert_eq!(report.len(), 32);
         assert_eq!(report[0], 0x05);
@@ -348,7 +349,7 @@ mod tests {
         let report = build_ds4_bt_report(OutputState {
             led_mask_4bit: 0b0111,
             led_mask_5bit: 0,
-            rumble_on: false,
+            rumble: 0,
         });
         assert_eq!(report.len(), 78);
         assert_eq!(report[0], 0x11);

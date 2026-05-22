@@ -14,6 +14,7 @@ pub(crate) mod jc1;
 pub(crate) mod jc2;
 pub(crate) mod report;
 pub(crate) mod reset_buttons;
+pub(crate) mod rumble;
 pub(crate) mod spi_cal;
 pub(crate) mod subcmd;
 

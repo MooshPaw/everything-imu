@@ -90,7 +90,9 @@ pub trait Device: Send {
     /// Set player-LED mask (1 = solid, 0 = off; bits [3:0] = LED1..4).
     async fn set_led_mask(&mut self, mask: u8) -> Result<(), DeviceError>;
 
-    async fn set_rumble(&mut self, on: bool) -> Result<(), DeviceError>;
+    /// Set rumble intensity in `0.0..=1.0` (0.0 = off). Drivers convert this
+    /// to their hardware's amplitude representation; see `crate::rumble`.
+    async fn set_rumble(&mut self, intensity: f32) -> Result<(), DeviceError>;
 }
 
 /// Long-running enumerate task that emits `(metadata, device)` pairs as they appear.

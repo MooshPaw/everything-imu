@@ -7,4 +7,5 @@
 pub use nalgebra::{Quaternion, UnitQuaternion, Vector3};
 
 pub mod coord;
+pub mod mag_cal;
 pub mod quat;

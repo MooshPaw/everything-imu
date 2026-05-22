@@ -9,6 +9,7 @@ members = [
     "crates/device-dualsense",
     "crates/device-psmove",
     "crates/device-wii",
+    "crates/osc-haptics",
     "crates/persistence",
     "crates/core",
     "crates/everything-imu-app",

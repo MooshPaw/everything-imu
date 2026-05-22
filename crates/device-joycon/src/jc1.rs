@@ -130,10 +130,8 @@ impl Device for JoyCon1Device {
             let cal = cal_swap.load();
             let mut samples = Vec::with_capacity(3);
             for raw_s in report.imu_samples.iter() {
-                let mut accel =
-                    accel_sample_m_s2(raw_s.accel, cal.accel_offset, cal.accel_coeff_g);
-                let mut gyro =
-                    gyro_sample_rad_s(raw_s.gyro, cal.gyro_offset, cal.gyro_coeff_dps);
+                let mut accel = accel_sample_m_s2(raw_s.accel, cal.accel_offset, cal.accel_coeff_g);
+                let mut gyro = gyro_sample_rad_s(raw_s.gyro, cal.gyro_offset, cal.gyro_coeff_dps);
                 accel = axis_remap::apply(kind, accel);
                 gyro = axis_remap::apply(kind, gyro);
                 samples.push(ImuSample {
@@ -192,10 +190,13 @@ impl Device for JoyCon1Device {
         self.write_report(set_player_leds(cnt, mask)).await
     }
 
-    async fn set_rumble(&mut self, on: bool) -> Result<(), DeviceError> {
+    async fn set_rumble(&mut self, intensity: f32) -> Result<(), DeviceError> {
+        // The vibration feature is already enabled in run_connect_sequence
+        // (subcmd 0x48 0x01). Drive a real HD Rumble frame: encode the
+        // intensity into the packed amplitude curve and send report 0x10.
+        let frame = crate::rumble::encode_rumble_frame(intensity);
         let cnt = self.next_counter();
-        let arg = if on { 0x01 } else { 0x00 };
-        let buf = crate::subcmd::build_report_0x01(cnt, 0x48, &[arg]);
+        let buf = crate::subcmd::build_report_0x10(cnt, frame);
         self.write_report(buf).await
     }
 }

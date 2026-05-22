@@ -7,6 +7,10 @@ use device_traits::{
 use std::time::Duration;
 use tokio::sync::mpsc;
 
+/// Hard-iron offset (µT) baked into the synthetic magnetometer field. A
+/// calibration session run against this device should recover it.
+pub const SYNTH_MAG_OFFSET: [f32; 3] = [6.0, -12.0, 9.0];
+
 pub struct SyntheticPsMove {
     metadata: DeviceMetadata,
     seed: u64,
@@ -60,10 +64,21 @@ impl Device for SyntheticPsMove {
                 let mut samples = Vec::with_capacity(2);
                 for sub in 0..2 {
                     let gz = (t * 0.4).sin() * 0.6;
+                    // Synthetic magnetometer: a 45 µT field on a sphere with a
+                    // fixed hard-iron offset. The direction sweeps with `t`
+                    // (fast azimuth, slow polar) so a calibration session sees
+                    // a full spread of orientations and can recover the offset.
+                    let az = t * 5.0;
+                    let pol = t * 1.3;
+                    let mag = Some([
+                        SYNTH_MAG_OFFSET[0] + pol.sin() * az.cos() * 45.0,
+                        SYNTH_MAG_OFFSET[1] + pol.cos() * 45.0,
+                        SYNTH_MAG_OFFSET[2] + pol.sin() * az.sin() * 45.0,
+                    ]);
                     samples.push(ImuSample {
                         gyro: [0.0, 0.0, gz],
                         accel: [0.0, 0.0, 9.806_65],
-                        mag: Some([10.0, 20.0, 30.0]),
+                        mag,
                         timestamp_us: ((t - (1 - sub) as f32 * 0.0055) * 1e6) as u64,
                     });
                     t += 0.0055;
@@ -97,7 +112,9 @@ impl Device for SyntheticPsMove {
         Ok(())
     }
 
-    async fn set_rumble(&mut self, _on: bool) -> Result<(), DeviceError> {
+    async fn set_rumble(&mut self, intensity: f32) -> Result<(), DeviceError> {
+        // No motor — log so the haptic bridge is observable in synthetic mode.
+        tracing::debug!(id = %self.metadata.id, intensity, "synthetic psmove rumble");
         Ok(())
     }
 }

@@ -9,6 +9,7 @@ pub mod device;
 pub mod events;
 pub mod health;
 pub mod reset;
+pub mod rumble;
 pub mod stores;
 
 #[cfg(feature = "mock")]

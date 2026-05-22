@@ -6,6 +6,7 @@ import { useActivityStore } from "../stores/useActivityStore";
 import { useBiasStore } from "../stores/useBiasStore";
 import { useConnectionStore } from "../stores/useConnectionStore";
 import { useDeviceStore } from "../stores/useDeviceStore";
+import { useHapticStore } from "../stores/useHapticStore";
 import { useImuStreamStore } from "../stores/useImuStreamStore";
 import { useLatencyStore } from "../stores/useLatencyStore";
 import { useLogStore } from "../stores/useLogStore";
@@ -46,6 +47,7 @@ export function EventBridge() {
   const pushLog = useLogStore((s) => s.push);
   const pushLogBatch = useLogStore((s) => s.pushBatch);
   const pushToast = useToastStore((s) => s.push);
+  const addHapticAddress = useHapticStore((s) => s.add);
   const lowBatteryNotified = useRef<Set<string>>(new Set());
 
   // oxlint-disable-next-line react-doctor/no-cascading-set-state, react-doctor/effect-needs-cleanup -- snapshots are 3 independent stores; cleanup happens via Promise-of-unsubscribe pattern at end
@@ -123,6 +125,7 @@ export function EventBridge() {
         }
       }),
       events.logEntry.listen((e) => pushLog(e.payload)),
+      events.hapticAddressDiscovered.listen((e) => addHapticAddress(e.payload.address)),
     ];
 
     return () => {
@@ -143,6 +146,7 @@ export function EventBridge() {
     pushLog,
     pushLogBatch,
     pushToast,
+    addHapticAddress,
   ]);
 
   return null;

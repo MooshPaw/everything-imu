@@ -14,6 +14,9 @@ const DevicesPage = lazy(() =>
 const TrackerDetailPage = lazy(() =>
   import("./pages/TrackerDetailPage").then((m) => ({ default: m.TrackerDetailPage })),
 );
+const HapticsPage = lazy(() =>
+  import("./pages/HapticsPage").then((m) => ({ default: m.HapticsPage })),
+);
 const LogsPage = lazy(() => import("./pages/LogsPage").then((m) => ({ default: m.LogsPage })));
 const SettingsPage = lazy(() =>
   import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
@@ -61,6 +64,14 @@ export function App() {
           element={
             <Suspense fallback={<RouteFallback />}>
               <TrackerDetailPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/haptics"
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <HapticsPage />
             </Suspense>
           }
         />

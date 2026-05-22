@@ -70,7 +70,7 @@ impl Device for MockDevice {
         Ok(())
     }
 
-    async fn set_rumble(&mut self, _on: bool) -> Result<(), DeviceError> {
+    async fn set_rumble(&mut self, _intensity: f32) -> Result<(), DeviceError> {
         Ok(())
     }
 }

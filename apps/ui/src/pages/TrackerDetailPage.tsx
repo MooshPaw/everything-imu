@@ -202,7 +202,7 @@ export function TrackerDetailPage() {
         </TileTitled>
 
         <TileTitled title={t("pages.per_device_config")} span={2}>
-          <PerDeviceConfig mac={macBytes} />
+          <PerDeviceConfig mac={macBytes} hasMagnetometer={dev?.has_magnetometer ?? false} />
         </TileTitled>
 
         <div className="flex min-w-0 flex-col gap-4">

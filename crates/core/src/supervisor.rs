@@ -50,7 +50,7 @@ impl Supervisor {
                 while let Some(cmd) = control_rx.recv().await {
                     let res = match cmd {
                         DeviceControl::SetLedMask(mask) => device.set_led_mask(mask).await,
-                        DeviceControl::SetRumble(on) => device.set_rumble(on).await,
+                        DeviceControl::SetRumble(intensity) => device.set_rumble(intensity).await,
                     };
                     if let Err(e) = res {
                         tracing::debug!(id = %device_id, error = %e, "device control command failed");

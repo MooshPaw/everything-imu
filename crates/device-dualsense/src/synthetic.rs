@@ -100,7 +100,9 @@ impl Device for SyntheticDualSense {
         Ok(())
     }
 
-    async fn set_rumble(&mut self, _on: bool) -> Result<(), DeviceError> {
+    async fn set_rumble(&mut self, intensity: f32) -> Result<(), DeviceError> {
+        // No motor — log so the haptic bridge is observable in synthetic mode.
+        tracing::debug!(id = %self.metadata.id, intensity, "synthetic dualsense rumble");
         Ok(())
     }
 }

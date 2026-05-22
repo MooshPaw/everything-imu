@@ -26,4 +26,4 @@ pub use device_traits::{Device, DeviceFactory};
 pub use factory::{PairedPsMove, PsMoveFactory};
 pub use ids::{ControllerKind, SONY_VID};
 #[cfg(feature = "synthetic-source")]
-pub use synthetic::SyntheticPsMove;
+pub use synthetic::{SyntheticPsMove, SYNTH_MAG_OFFSET};

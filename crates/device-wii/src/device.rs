@@ -117,7 +117,9 @@ impl Device for WiiDevice {
         Ok(())
     }
 
-    async fn set_rumble(&mut self, on: bool) -> Result<(), DeviceError> {
+    async fn set_rumble(&mut self, intensity: f32) -> Result<(), DeviceError> {
+        // Wiimote has a 1-bit motor — engage above the halfway mark.
+        let on = device_traits::rumble::is_on(intensity, 0.5);
         let mut state = self.rumble_state.write().await;
         if let Some((base_ip, idx)) = self.stream_key.rsplit_once(':') {
             if let Some(slot) = state.get_mut(base_ip) {

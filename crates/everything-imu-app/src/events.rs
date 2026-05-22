@@ -100,6 +100,14 @@ pub struct LatencyUpdate {
 /// Snapshot of the SlimeClient runtime state for the Connection panel.
 /// Emitted ~1 Hz and also returned synchronously by the
 /// `get_connection_status` command for first paint.
+/// A distinct OSC address the haptic bridge has observed from VRChat.
+/// The haptics config UI listens for these so the user can tap an avatar
+/// contact in-game and bind the address that lights up.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
+pub struct HapticAddressDiscovered {
+    pub address: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
 pub struct ConnectionStatusUpdate {
     pub server_addr: String,

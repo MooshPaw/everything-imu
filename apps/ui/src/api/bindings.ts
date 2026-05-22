@@ -239,6 +239,94 @@ async getAdvancedTelemetry() : Promise<Result<AdvancedTelemetryDto[], IpcError>>
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * Begin a magnetometer calibration session for one device. The user then
+ * rotates the device through all orientations while the pipeline collects
+ * samples; the UI polls [`get_mag_cal_progress`].
+ */
+async startMagCalibration(mac: [number, number, number, number, number, number]) : Promise<Result<boolean, IpcError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("start_mag_calibration", { mac }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Abort an in-progress calibration session, discarding collected samples.
+ */
+async cancelMagCalibration(mac: [number, number, number, number, number, number]) : Promise<Result<boolean, IpcError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cancel_mag_calibration", { mac }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Finish a calibration session: fit the sphere, persist the result, enable
+ * the magnetometer, and apply it to the running pipeline. Errors if the fit
+ * failed (too few or poorly-spread samples — rotate more and retry).
+ */
+async finishMagCalibration(mac: [number, number, number, number, number, number]) : Promise<Result<MagCalibrationDto, IpcError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("finish_mag_calibration", { mac }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Latest progress of an in-flight calibration session, or an inactive
+ * snapshot if none is running.
+ */
+async getMagCalProgress(mac: [number, number, number, number, number, number]) : Promise<Result<MagCalProgressDto, IpcError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_mag_cal_progress", { mac }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * The persisted hard-iron calibration for a device, or `None` if uncalibrated.
+ */
+async getMagCalibration(mac: [number, number, number, number, number, number]) : Promise<Result<MagCalibrationDto | null, IpcError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_mag_calibration", { mac }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Discard a device's persisted calibration. The magnetometer stops feeding
+ * fusion until the device is recalibrated.
+ */
+async clearMagCalibration(mac: [number, number, number, number, number, number]) : Promise<Result<null, IpcError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("clear_mag_calibration", { mac }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getHapticConfig() : Promise<Result<HapticConfigDto, IpcError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_haptic_config") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async setHapticConfig(config: HapticConfigDto) : Promise<Result<null, IpcError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_haptic_config", { config }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -251,6 +339,7 @@ connectionStatusUpdate: ConnectionStatusUpdate,
 deviceDiscovered: DeviceDiscovered,
 deviceHistoryUpdated: DeviceHistoryUpdated,
 deviceStateChanged: DeviceStateChanged,
+hapticAddressDiscovered: HapticAddressDiscovered,
 imuSampleUpdate: ImuSampleUpdate,
 latencyUpdate: LatencyUpdate,
 logEntry: LogEntry,
@@ -261,6 +350,7 @@ connectionStatusUpdate: "connection-status-update",
 deviceDiscovered: "device-discovered",
 deviceHistoryUpdated: "device-history-updated",
 deviceStateChanged: "device-state-changed",
+hapticAddressDiscovered: "haptic-address-discovered",
 imuSampleUpdate: "imu-sample-update",
 latencyUpdate: "latency-update",
 logEntry: "log-entry",
@@ -277,11 +367,6 @@ export type AdvancedTelemetryDto = { mac: [number, number, number, number, numbe
 export type BiasEntry = { mac: [number, number, number, number, number, number]; gyr_bias: [number, number, number] }
 export type BiasUpdate = { entries: BiasEntry[] }
 export type CalibrationWizardStatusDto = { suggested_mounting: MountingOrientationDto; suggested_rotation_offset_deg: number; accel_norm_mps2: number; gyro_norm_rads: number; sample_age_ms: number }
-/**
- * Snapshot of the SlimeClient runtime state for the Connection panel.
- * Emitted ~1 Hz and also returned synchronously by the
- * `get_connection_status` command for first paint.
- */
 export type ConnectionStatusUpdate = { server_addr: string; server_supports_bundle: boolean; packets_sent: number; last_send_ms_ago: number | null; last_handshake_ms_ago: number | null }
 export type DeviceConnState = "connected" | "disconnected"
 export type DeviceDiscovered = { metadata: DeviceMetadataDto }
@@ -290,6 +375,22 @@ export type DeviceHistoryUpdated = { rows: DeviceHistoryDto[] }
 export type DeviceMetadataDto = { mac: [number, number, number, number, number, number]; serial: string; kind: string; firmware: string | null; has_magnetometer: boolean; has_battery: boolean; has_rumble: boolean; native_imu_rate_hz: number }
 export type DeviceStateChanged = { mac: [number, number, number, number, number, number]; state: DeviceConnState }
 export type FusionAlgoDto = "vqf" | "madgwick" | "basic_vqf"
+/**
+ * Snapshot of the SlimeClient runtime state for the Connection panel.
+ * Emitted ~1 Hz and also returned synchronously by the
+ * `get_connection_status` command for first paint.
+ * A distinct OSC address the haptic bridge has observed from VRChat.
+ * The haptics config UI listens for these so the user can tap an avatar
+ * contact in-game and bind the address that lights up.
+ */
+export type HapticAddressDiscovered = { address: string }
+export type HapticConfigDto = { enabled: boolean; listen_port: number; rules: HapticRuleDto[] }
+export type HapticModeDto = { kind: "proximity"; gain: number; min_threshold: number } | { kind: "pulse"; pulse_ms: number }
+export type HapticRuleDto = { osc_address: string; 
+/**
+ * Target device MAC as 12 lowercase hex chars (no separators).
+ */
+device_mac: string; mode: HapticModeDto }
 /**
  * One raw IMU sample per known device at the emitter cadence (~30 Hz).
  * Frame is the device-native body frame.
@@ -307,6 +408,34 @@ export type LatencyEntry = { mac: [number, number, number, number, number, numbe
 export type LatencyUpdate = { entries: LatencyEntry[] }
 export type LogEntry = { ts_ms: number; level: string; target: string; message: string }
 export type LogEntryDto = { ts_ms: number; level: string; target: string; message: string }
+/**
+ * Live progress of an in-flight calibration session.
+ */
+export type MagCalProgressDto = { active: boolean; n_samples: number; 
+/**
+ * Coverage 0.0..=1.0 — drives the "rotate the device" progress ring.
+ */
+coverage: number; field_strength_ut: number }
+/**
+ * Persisted hard-iron calibration, frontend-facing.
+ */
+export type MagCalibrationDto = { 
+/**
+ * Hard-iron offset (µT) subtracted from raw magnetometer samples.
+ */
+offset: [number, number, number]; 
+/**
+ * Fitted field magnitude (µT). Earth's field is ~25-65 µT.
+ */
+field_strength_ut: number; 
+/**
+ * Sphere-fit RMS residual (µT) — lower is a tighter fit.
+ */
+residual: number; 
+/**
+ * Direction-bin coverage 0.0..=1.0 of the calibration sample set.
+ */
+coverage: number }
 export type MountingOrientationDto = "identity" | "left_side" | "right_side" | "upside_down" | "facing_forward" | "facing_back"
 export type OutputProfileDto = { led_mask: number; rumble_enabled: boolean }
 export type PerDeviceSettingsDto = { fusion: FusionAlgoDto; mounting: MountingOrientationDto; magnetometer_enabled: boolean; rotation_offset_deg: number; 

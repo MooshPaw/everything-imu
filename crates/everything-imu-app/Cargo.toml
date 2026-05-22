@@ -35,6 +35,7 @@ tauri-plugin-single-instance = "2"
 serde = { workspace = true }
 serde_json = { workspace = true }
 everything-imu-core = { path = "../core" }
+osc-haptics = { path = "../osc-haptics" }
 device-joycon = { path = "../device-joycon", features = ["synthetic-source"] }
 device-dualsense = { path = "../device-dualsense", features = ["synthetic-source"] }
 device-psmove = { path = "../device-psmove", features = ["synthetic-source"] }

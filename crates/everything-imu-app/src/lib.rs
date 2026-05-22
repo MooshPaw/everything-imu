@@ -4,6 +4,7 @@ pub mod commands;
 pub mod dto;
 pub mod error;
 pub mod events;
+pub mod haptics;
 pub mod logging;
 pub mod state;
 pub mod supervisor_boot;
@@ -151,12 +152,19 @@ pub fn run() {
                 .try_init();
             tracing::info!(?log_dir, "log file rolling daily, retain 7 days");
 
+            // Start the OSC haptic bridge before managing AppHandle so its
+            // live-config sender can be stored for the haptics commands.
+            let haptic_config = haptics::load_config(&db);
+            let haptic_config_tx =
+                haptics::spawn(app.handle(), state.clone(), haptic_config);
+
             tauri::Manager::manage(
                 app,
                 state::AppHandle {
                     state: state.clone(),
                     db: db.clone(),
                     log_buffer,
+                    haptic_config_tx,
                 },
             );
 
@@ -218,6 +226,14 @@ pub fn build_specta() -> tauri_specta::Builder<tauri::Wry> {
             commands::get_calibration_wizard_status,
             commands::apply_calibration_wizard,
             commands::get_advanced_telemetry,
+            commands::start_mag_calibration,
+            commands::cancel_mag_calibration,
+            commands::finish_mag_calibration,
+            commands::get_mag_cal_progress,
+            commands::get_mag_calibration,
+            commands::clear_mag_calibration,
+            haptics::get_haptic_config,
+            haptics::set_haptic_config,
         ])
         .events(tauri_specta::collect_events![
             events::TrackerUpdate,
@@ -229,5 +245,6 @@ pub fn build_specta() -> tauri_specta::Builder<tauri::Wry> {
             events::BiasUpdate,
             events::LatencyUpdate,
             events::ConnectionStatusUpdate,
+            events::HapticAddressDiscovered,
         ])
 }

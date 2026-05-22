@@ -250,11 +250,18 @@ pub async fn get_per_device_settings(
         .get_setting(&format!("mounting_orientation:{mk}"))?
         .map(|s| MountingOrientationDto::from_setting(&s))
         .unwrap_or(MountingOrientationDto::Identity);
+    // Mirror the pipeline's auto-enable rule: a device with a persisted
+    // calibration defaults to magnetometer-on; an explicit setting overrides.
+    let has_mag_cal = handle
+        .db
+        .get_setting(&mag_cal_key(mac))?
+        .map(|s| !s.is_empty())
+        .unwrap_or(false);
     let magnetometer_enabled = handle
         .db
         .get_setting(&format!("magnetometer_enabled:{mk}"))?
         .map(|s| s == "1" || s.eq_ignore_ascii_case("true"))
-        .unwrap_or(false);
+        .unwrap_or(has_mag_cal);
     let rotation_offset_deg = handle
         .db
         .get_setting(&format!(
@@ -683,7 +690,10 @@ pub async fn set_output_profile(
     )?;
     if apply_now {
         let _ = handle.state.set_led_mask(mac, profile.led_mask).await;
-        let _ = handle.state.set_rumble(mac, profile.rumble_enabled).await;
+        let _ = handle
+            .state
+            .set_rumble(mac, if profile.rumble_enabled { 1.0 } else { 0.0 })
+            .await;
     }
     Ok(())
 }
@@ -841,6 +851,148 @@ pub async fn get_advanced_telemetry(
 
 fn norm3(v: [f32; 3]) -> f32 {
     (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt()
+}
+
+// --- magnetometer calibration ----------------------------------------------
+
+/// DB key holding a device's persisted hard-iron calibration as a JSON blob.
+fn mag_cal_key(mac: [u8; 6]) -> String {
+    format!("mag_cal:{}", mac_key(mac))
+}
+
+/// Persisted hard-iron calibration, frontend-facing.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, specta::Type)]
+pub struct MagCalibrationDto {
+    /// Hard-iron offset (µT) subtracted from raw magnetometer samples.
+    pub offset: [f32; 3],
+    /// Fitted field magnitude (µT). Earth's field is ~25-65 µT.
+    pub field_strength_ut: f32,
+    /// Sphere-fit RMS residual (µT) — lower is a tighter fit.
+    pub residual: f32,
+    /// Direction-bin coverage 0.0..=1.0 of the calibration sample set.
+    pub coverage: f32,
+}
+
+impl From<imu_math::mag_cal::MagCalibration> for MagCalibrationDto {
+    fn from(c: imu_math::mag_cal::MagCalibration) -> Self {
+        Self {
+            offset: c.offset,
+            field_strength_ut: c.field_strength_ut,
+            residual: c.residual,
+            coverage: c.coverage,
+        }
+    }
+}
+
+/// Live progress of an in-flight calibration session.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, specta::Type)]
+pub struct MagCalProgressDto {
+    pub active: bool,
+    pub n_samples: u32,
+    /// Coverage 0.0..=1.0 — drives the "rotate the device" progress ring.
+    pub coverage: f32,
+    pub field_strength_ut: f32,
+}
+
+/// Begin a magnetometer calibration session for one device. The user then
+/// rotates the device through all orientations while the pipeline collects
+/// samples; the UI polls [`get_mag_cal_progress`].
+#[tauri::command]
+#[specta::specta]
+pub async fn start_mag_calibration(
+    handle: State<'_, AppHandle>,
+    mac: [u8; 6],
+) -> Result<bool, IpcError> {
+    Ok(handle.state.start_mag_calibration(mac).await)
+}
+
+/// Abort an in-progress calibration session, discarding collected samples.
+#[tauri::command]
+#[specta::specta]
+pub async fn cancel_mag_calibration(
+    handle: State<'_, AppHandle>,
+    mac: [u8; 6],
+) -> Result<bool, IpcError> {
+    Ok(handle.state.cancel_mag_calibration(mac).await)
+}
+
+/// Finish a calibration session: fit the sphere, persist the result, enable
+/// the magnetometer, and apply it to the running pipeline. Errors if the fit
+/// failed (too few or poorly-spread samples — rotate more and retry).
+#[tauri::command]
+#[specta::specta]
+pub async fn finish_mag_calibration(
+    handle: State<'_, AppHandle>,
+    mac: [u8; 6],
+) -> Result<MagCalibrationDto, IpcError> {
+    let cal = handle
+        .state
+        .finish_mag_calibration(mac)
+        .await
+        .ok_or_else(|| {
+            IpcError::Internal(
+                "magnetometer calibration fit failed — rotate the device through more \
+                 orientations and try again"
+                    .into(),
+            )
+        })?;
+    let json = serde_json::to_string(&cal).map_err(|e| IpcError::Internal(e.to_string()))?;
+    handle.db.set_setting(&mag_cal_key(mac), &json)?;
+    // Calibrating implies wanting the magnetometer on — enable it unless the
+    // user later turns it off explicitly.
+    handle
+        .db
+        .set_setting(&format!("magnetometer_enabled:{}", mac_key(mac)), "1")?;
+    handle.state.set_mag_calibration(mac, Some(cal)).await;
+    handle.state.set_magnetometer_enabled(mac, true).await;
+    tracing::info!(mac = ?mac, coverage = cal.coverage, residual = cal.residual, "mag calibration saved");
+    Ok(cal.into())
+}
+
+/// Latest progress of an in-flight calibration session, or an inactive
+/// snapshot if none is running.
+#[tauri::command]
+#[specta::specta]
+pub async fn get_mag_cal_progress(
+    handle: State<'_, AppHandle>,
+    mac: [u8; 6],
+) -> Result<MagCalProgressDto, IpcError> {
+    let p = handle.state.mag_cal_progress(mac).await.unwrap_or_default();
+    Ok(MagCalProgressDto {
+        active: p.active,
+        n_samples: p.n_samples,
+        coverage: p.coverage,
+        field_strength_ut: p.field_strength_ut,
+    })
+}
+
+/// The persisted hard-iron calibration for a device, or `None` if uncalibrated.
+#[tauri::command]
+#[specta::specta]
+pub async fn get_mag_calibration(
+    handle: State<'_, AppHandle>,
+    mac: [u8; 6],
+) -> Result<Option<MagCalibrationDto>, IpcError> {
+    let cal = handle
+        .db
+        .get_setting(&mag_cal_key(mac))?
+        .and_then(|json| serde_json::from_str::<imu_math::mag_cal::MagCalibration>(&json).ok())
+        .map(MagCalibrationDto::from);
+    Ok(cal)
+}
+
+/// Discard a device's persisted calibration. The magnetometer stops feeding
+/// fusion until the device is recalibrated.
+#[tauri::command]
+#[specta::specta]
+pub async fn clear_mag_calibration(
+    handle: State<'_, AppHandle>,
+    mac: [u8; 6],
+) -> Result<(), IpcError> {
+    handle.db.set_setting(&mag_cal_key(mac), "")?;
+    handle.state.set_mag_calibration(mac, None).await;
+    tracing::info!(mac = ?mac, "mag calibration cleared");
+    Ok(())
 }
 
 fn yaw_deg_from_quat(q: [f32; 4]) -> f32 {

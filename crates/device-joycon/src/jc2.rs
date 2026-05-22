@@ -804,12 +804,18 @@ impl Device for JoyCon2Device {
         Ok(())
     }
 
-    async fn set_rumble(&mut self, on: bool) -> Result<(), DeviceError> {
+    async fn set_rumble(&mut self, intensity: f32) -> Result<(), DeviceError> {
         ensure_connected(&self.peripheral).await?;
         let write_char = self.write_char.clone().ok_or_else(|| {
             DeviceError::Hid("jc2 not started: command characteristic unavailable".into())
         })?;
-        let preset = if on { 0x01 } else { 0x00 };
+        // JC2 rumble is preset-quantized — any positive intensity fires the
+        // documented buzz preset 0x01.
+        let preset = if device_traits::rumble::is_on(intensity, 0.0) {
+            0x01
+        } else {
+            0x00
+        };
         let cmd = build_rumble_preset_cmd(preset);
         self.peripheral
             .write(&write_char, &cmd, WriteType::WithoutResponse)
@@ -1124,7 +1130,10 @@ mod tests {
     #[test]
     fn pro_controller_axis_remap_is_base_only() {
         // Pro 2 gets the SDL base remap (x, z, -y) with no standalone flip.
-        assert_eq!(remap_axes(JoyCon2Kind::Pro, [1.0, 2.0, 3.0]), [1.0, 3.0, -2.0]);
+        assert_eq!(
+            remap_axes(JoyCon2Kind::Pro, [1.0, 2.0, 3.0]),
+            [1.0, 3.0, -2.0]
+        );
     }
 
     #[test]

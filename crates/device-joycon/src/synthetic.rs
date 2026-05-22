@@ -28,7 +28,7 @@ impl SyntheticJoyConL {
                 capabilities: DeviceCapabilities {
                     has_magnetometer: false,
                     has_battery: true,
-                    has_rumble: false,
+                    has_rumble: true,
                     native_imu_rate_hz: 200,
                 },
             },
@@ -95,7 +95,9 @@ impl Device for SyntheticJoyConL {
         Ok(())
     }
 
-    async fn set_rumble(&mut self, _on: bool) -> Result<(), DeviceError> {
+    async fn set_rumble(&mut self, intensity: f32) -> Result<(), DeviceError> {
+        // No motor — log so the haptic bridge is observable in synthetic mode.
+        tracing::debug!(id = %self.metadata.id, intensity, "synthetic joycon rumble");
         Ok(())
     }
 }

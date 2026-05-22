@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { FusionAlgoDto, MountingOrientationDto, PerDeviceSettingsDto } from "../api/client";
 import { api } from "../api/client";
+import { MagCalibrationPanel } from "./MagCalibrationPanel";
 
 const FUSION_IDS: FusionAlgoDto[] = ["vqf", "madgwick", "basic_vqf"];
 const MOUNTING_IDS: MountingOrientationDto[] = [
@@ -15,8 +16,10 @@ const MOUNTING_IDS: MountingOrientationDto[] = [
 
 export function PerDeviceConfig({
   mac,
+  hasMagnetometer = false,
 }: {
   mac: [number, number, number, number, number, number];
+  hasMagnetometer?: boolean;
 }) {
   const { t } = useTranslation();
   const [settings, setSettings] = useState<PerDeviceSettingsDto | null>(null);
@@ -203,17 +206,24 @@ export function PerDeviceConfig({
       </Section>
 
       <Section label={t("labels.magnetometer")}>
-        <label className="flex items-center gap-2 text-sm text-[var(--fg-secondary)]">
-          <input
-            type="checkbox"
-            checked={settings?.magnetometer_enabled ?? false}
-            disabled={busy === "mag"}
-            onChange={(e) => void toggleMag(e.target.checked)}
-            className="size-4 accent-[var(--accent)]"
-          />
-          {t("hints.feed_mag")}
-        </label>
-        <p className="text-[11px] text-[var(--fg-muted)]">{t("hints.magnetometer")}</p>
+        {hasMagnetometer ? (
+          <>
+            <label className="flex items-center gap-2 text-sm text-[var(--fg-secondary)]">
+              <input
+                type="checkbox"
+                checked={settings?.magnetometer_enabled ?? false}
+                disabled={busy === "mag"}
+                onChange={(e) => void toggleMag(e.target.checked)}
+                className="size-4 accent-[var(--accent)]"
+              />
+              {t("hints.feed_mag")}
+            </label>
+            <p className="text-[11px] text-[var(--fg-muted)]">{t("hints.mag_needs_cal")}</p>
+            <MagCalibrationPanel mac={mac} />
+          </>
+        ) : (
+          <p className="text-[11px] text-[var(--fg-muted)]">{t("hints.no_magnetometer")}</p>
+        )}
       </Section>
 
       {msg && <div className="text-[11px] text-[var(--fg-muted)]">{msg}</div>}

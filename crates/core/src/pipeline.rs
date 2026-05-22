@@ -6,6 +6,7 @@ use crate::quat::QuatXyzw;
 use device_traits::{BiasStore, ChannelInfo, DeviceMetadata, ResetKind};
 use imu_fusion::{BasicVqf, Madgwick, Vqf};
 use imu_math::coord;
+use imu_math::mag_cal::{self, MagCalibration};
 use nalgebra::Vector3;
 use slime_tracker::client::SlimeClient;
 use slime_tracker::{ActionType, SlimeQuaternion};
@@ -116,7 +117,44 @@ pub struct PipelineConfig {
     /// quaternion *after* the mounting preset. Useful for fine-tuning a
     /// tracker that's mounted slightly off-angle. Live-swappable.
     pub rotation_offset_deg: f32,
+    /// Hard-iron calibration for the magnetometer. When `None`, the magnetometer
+    /// is *not* fed to fusion even if `magnetometer_enabled` is true — an
+    /// uncalibrated magnetometer reads worse than no magnetometer at all.
+    pub mag_calibration: Option<MagCalibration>,
 }
+
+/// Edge-triggered command driving a magnetometer calibration session. Sent
+/// over a `watch` channel; the pipeline acts on each transition away from
+/// [`MagCalCommand::Idle`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MagCalCommand {
+    #[default]
+    Idle,
+    /// Begin collecting raw magnetometer samples.
+    Start,
+    /// Stop collecting and fit a [`MagCalibration`] from the buffer.
+    Finish,
+    /// Stop collecting and discard the buffer.
+    Cancel,
+}
+
+/// Live progress of a magnetometer calibration session, published every IMU
+/// batch while a session is active so the UI can render a coverage meter.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct MagCalProgress {
+    pub active: bool,
+    pub n_samples: u32,
+    /// Direction-bin coverage `0.0..=1.0` — drives the "rotate the device"
+    /// progress ring. A figure-8 through all orientations approaches 1.0.
+    pub coverage: f32,
+    /// Provisional fitted field magnitude (µT), 0.0 before enough samples.
+    pub field_strength_ut: f32,
+}
+
+/// Upper bound on buffered calibration samples. At ~62 Hz (Joy-Con 2) this is
+/// ~64 s of capture — far more than a calibration needs; extra samples are
+/// dropped rather than growing the buffer unbounded.
+const MAG_CAL_BUFFER_CAP: usize = 4000;
 
 /// Internal: enum-dispatched orientation filter. Kept private so consumers
 /// only see the [`FusionAlgo`] selector — the `update` / `quat_wijk` /
@@ -251,6 +289,11 @@ pub struct Pipeline {
     rate_counter: VecDeque<Instant>,
     sensor_info_sent: bool,
     last_sensor_mag_config: Option<u16>,
+    mag_cal_cmd_rx: watch::Receiver<MagCalCommand>,
+    mag_cal_progress_tx: watch::Sender<MagCalProgress>,
+    mag_cal_result_tx: watch::Sender<Option<MagCalibration>>,
+    mag_cal_buffer: Vec<[f32; 3]>,
+    mag_cal_active: bool,
 }
 
 pub struct PipelineHandles {
@@ -266,6 +309,13 @@ pub struct PipelineHandles {
     /// but do *not* swap the running filter — that needs a reconnect to
     /// avoid dropping fusion state mid-stream.
     pub config_tx: watch::Sender<PipelineConfig>,
+    /// Drives a magnetometer calibration session. See [`MagCalCommand`].
+    pub mag_cal_cmd_tx: watch::Sender<MagCalCommand>,
+    /// Live calibration progress while a session is active.
+    pub mag_cal_progress_rx: watch::Receiver<MagCalProgress>,
+    /// Carries the fitted [`MagCalibration`] after a [`MagCalCommand::Finish`].
+    /// `None` means the fit failed (too few samples / poor geometry).
+    pub mag_cal_result_rx: watch::Receiver<Option<MagCalibration>>,
 }
 
 impl Pipeline {
@@ -300,6 +350,10 @@ impl Pipeline {
         let (battery_tx, battery_rx) = watch::channel(f32::NAN);
         let (latency_tx, latency_rx) = watch::channel(LatencySnapshot::default());
         let (config_tx, config_rx) = watch::channel(config);
+        let (mag_cal_cmd_tx, mag_cal_cmd_rx) = watch::channel(MagCalCommand::Idle);
+        let (mag_cal_progress_tx, mag_cal_progress_rx) =
+            watch::channel(MagCalProgress::default());
+        let (mag_cal_result_tx, mag_cal_result_rx) = watch::channel(None);
         let pipeline = Self {
             meta,
             slime,
@@ -320,6 +374,11 @@ impl Pipeline {
             rate_counter: VecDeque::with_capacity(256),
             sensor_info_sent: false,
             last_sensor_mag_config: None,
+            mag_cal_cmd_rx,
+            mag_cal_progress_tx,
+            mag_cal_result_tx,
+            mag_cal_buffer: Vec::new(),
+            mag_cal_active: false,
         };
         let handles = PipelineHandles {
             quat_rx,
@@ -329,6 +388,9 @@ impl Pipeline {
             battery_rx,
             latency_rx,
             config_tx,
+            mag_cal_cmd_tx,
+            mag_cal_progress_rx,
+            mag_cal_result_rx,
         };
         (pipeline, handles)
     }
@@ -341,6 +403,9 @@ impl Pipeline {
         loop {
             tokio::select! {
                 _ = stop.changed() => break,
+                _ = self.mag_cal_cmd_rx.changed() => {
+                    self.handle_mag_cal_cmd();
+                }
                 Some(evt) = events.recv() => {
                     if let Err(e) = self.handle_event(evt).await {
                         tracing::warn!(error = %e, "event handle failed; pipeline exiting");
@@ -412,18 +477,36 @@ impl Pipeline {
                 self.latency.record_arrival(arrival);
                 let cfg = *self.config_rx.borrow();
                 for s in &samples {
+                    // Collect raw magnetometer samples for an in-progress
+                    // calibration session, in the device body frame — the
+                    // same frame the fitted offset is later subtracted in.
+                    if self.mag_cal_active {
+                        if let Some(m) = s.mag {
+                            if self.mag_cal_buffer.len() < MAG_CAL_BUFFER_CAP {
+                                self.mag_cal_buffer.push(m);
+                            }
+                        }
+                    }
                     let gyro_vqf =
                         coord::jsl_to_vqf_body(Vector3::new(s.gyro[0], s.gyro[1], s.gyro[2]));
                     let accel_vqf =
                         coord::jsl_to_vqf_body(Vector3::new(s.accel[0], s.accel[1], s.accel[2]));
-                    let mag_vqf = if cfg.magnetometer_enabled {
-                        s.mag
-                            .map(|m| coord::jsl_to_vqf_body(Vector3::new(m[0], m[1], m[2])))
-                    } else {
-                        None
+                    // Feed the magnetometer to fusion only when enabled AND
+                    // calibrated — an uncalibrated hard-iron offset corrupts
+                    // yaw worse than plain 6D gyro drift.
+                    let mag_vqf = match (cfg.magnetometer_enabled, cfg.mag_calibration) {
+                        (true, Some(cal)) => s.mag.map(|m| {
+                            coord::jsl_to_vqf_body(Vector3::new(
+                                m[0] - cal.offset[0],
+                                m[1] - cal.offset[1],
+                                m[2] - cal.offset[2],
+                            ))
+                        }),
+                        _ => None,
                     };
                     self.fusion.update(gyro_vqf, accel_vqf, mag_vqf);
                 }
+                self.publish_mag_cal_progress();
                 let q6 = self.fusion.quat_wijk(cfg.magnetometer_enabled);
                 let q_estimate = QuatXyzw::from_vqf_wijk(q6);
                 // Live-read mounting orientation + rotation offset each
@@ -537,6 +620,72 @@ impl Pipeline {
         let bias = self.fusion.bias_estimate();
         self.bias_store.store_bias(&self.meta.id, bias);
         tracing::debug!(id = %self.meta.id, "bias persisted");
+    }
+
+    /// React to a [`MagCalCommand`] transition. Start clears the buffer and
+    /// arms collection; Finish fits a [`MagCalibration`] and publishes it on
+    /// the result channel; Cancel discards the buffer.
+    fn handle_mag_cal_cmd(&mut self) {
+        let cmd = *self.mag_cal_cmd_rx.borrow_and_update();
+        match cmd {
+            MagCalCommand::Idle => {}
+            MagCalCommand::Start => {
+                self.mag_cal_buffer.clear();
+                self.mag_cal_active = true;
+                let _ = self.mag_cal_progress_tx.send(MagCalProgress {
+                    active: true,
+                    ..Default::default()
+                });
+                tracing::info!(id = %self.meta.id, "mag calibration session started");
+            }
+            MagCalCommand::Cancel => {
+                self.mag_cal_active = false;
+                self.mag_cal_buffer.clear();
+                let _ = self.mag_cal_progress_tx.send(MagCalProgress::default());
+                tracing::info!(id = %self.meta.id, "mag calibration session cancelled");
+            }
+            MagCalCommand::Finish => {
+                self.mag_cal_active = false;
+                let result = mag_cal::calibrate(&self.mag_cal_buffer);
+                match &result {
+                    Some(c) => tracing::info!(
+                        id = %self.meta.id,
+                        offset = ?c.offset,
+                        coverage = c.coverage,
+                        residual = c.residual,
+                        field_ut = c.field_strength_ut,
+                        "mag calibration fitted",
+                    ),
+                    None => tracing::warn!(
+                        id = %self.meta.id,
+                        n = self.mag_cal_buffer.len(),
+                        "mag calibration fit failed",
+                    ),
+                }
+                self.mag_cal_buffer.clear();
+                let _ = self.mag_cal_progress_tx.send(MagCalProgress::default());
+                let _ = self.mag_cal_result_tx.send(result);
+            }
+        }
+    }
+
+    /// Publish live calibration progress while a session is active. Re-fits
+    /// the sphere each batch — a 4×4 solve, cheap relative to fusion.
+    fn publish_mag_cal_progress(&self) {
+        if !self.mag_cal_active {
+            return;
+        }
+        let buf = &self.mag_cal_buffer;
+        let (coverage, field_strength_ut) = match mag_cal::fit_sphere(buf) {
+            Some(fit) => (mag_cal::coverage(buf, fit.center), fit.radius),
+            None => (0.0, 0.0),
+        };
+        let _ = self.mag_cal_progress_tx.send(MagCalProgress {
+            active: true,
+            n_samples: buf.len() as u32,
+            coverage,
+            field_strength_ut,
+        });
     }
 }
 

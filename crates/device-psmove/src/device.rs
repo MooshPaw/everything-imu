@@ -149,12 +149,12 @@ impl Device for PsMoveDevice {
         self.write_output_now()
     }
 
-    async fn set_rumble(&mut self, on: bool) -> Result<(), DeviceError> {
+    async fn set_rumble(&mut self, intensity: f32) -> Result<(), DeviceError> {
         let mut state = self
             .output_state
             .lock()
             .map_err(|_| DeviceError::Hid("psmove output lock poisoned".into()))?;
-        state.rumble = if on { 0x80 } else { 0x00 };
+        state.rumble = device_traits::rumble::to_u8(intensity);
         drop(state);
         self.write_output_now()
     }
