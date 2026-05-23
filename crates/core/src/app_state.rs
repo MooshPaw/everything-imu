@@ -3,8 +3,8 @@
 use crate::error::AppError;
 use crate::latency::LatencySnapshot;
 use crate::pipeline::{
-    BiasSnapshot, FusionAlgo, ImuSampleSnapshot, MagCalCommand, MagCalProgress, MountingOrientation,
-    Pipeline, PipelineConfig,
+    BiasSnapshot, FusionAlgo, ImuSampleSnapshot, MagCalCommand, MagCalProgress,
+    MountingOrientation, Pipeline, PipelineConfig,
 };
 use crate::quat::QuatXyzw;
 use device_traits::{BiasStore, ChannelInfo, DeviceId, DeviceMetadata, SettingsStore};

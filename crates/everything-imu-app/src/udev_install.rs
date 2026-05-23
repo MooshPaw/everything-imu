@@ -55,7 +55,12 @@ pub fn install() -> Result<String, InstallError> {
     let staged = std::path::PathBuf::from("/tmp/99-everything-imu.rules");
     std::fs::write(&staged, RULES)?;
 
-    if Command::new("which").arg("pkexec").output().map(|o| !o.status.success()).unwrap_or(true) {
+    if Command::new("which")
+        .arg("pkexec")
+        .output()
+        .map(|o| !o.status.success())
+        .unwrap_or(true)
+    {
         return Err(InstallError::NoPkexec);
     }
 
@@ -73,7 +78,9 @@ pub fn install() -> Result<String, InstallError> {
             stderr: String::from_utf8_lossy(&out.stderr).into_owned(),
         });
     }
-    Ok(format!("Installed udev rules to {TARGET_PATH}. Reconnect controllers."))
+    Ok(format!(
+        "Installed udev rules to {TARGET_PATH}. Reconnect controllers."
+    ))
 }
 
 #[cfg(not(target_os = "linux"))]

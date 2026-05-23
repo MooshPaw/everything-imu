@@ -332,7 +332,9 @@ pub async fn set_gyro_scale(
     scale: f32,
 ) -> Result<(), IpcError> {
     if !scale.is_finite() || scale <= 0.0 {
-        return Err(IpcError::Invalid("gyro_scale must be finite and > 0".into()));
+        return Err(IpcError::Invalid(
+            "gyro_scale must be finite and > 0".into(),
+        ));
     }
     let key = format!("gyro_scale:{}", mac_key(mac));
     handle.db.set_setting(&key, &scale.to_string())?;
@@ -789,7 +791,10 @@ pub struct HapticCalibrationDto {
 
 impl Default for HapticCalibrationDto {
     fn default() -> Self {
-        Self { floor: 0.0, gain: 1.0 }
+        Self {
+            floor: 0.0,
+            gain: 1.0,
+        }
     }
 }
 
@@ -1182,23 +1187,24 @@ pub async fn udp_haptic_upsert(
     } else {
         list.push(target.clone());
     }
-    handle.db.set_setting(key, &serde_json::to_string(&list).unwrap_or_default())?;
+    handle
+        .db
+        .set_setting(key, &serde_json::to_string(&list).unwrap_or_default())?;
     Ok(target)
 }
 
 /// Delete a UDP haptic target by its synthesized MAC.
 #[tauri::command]
 #[specta::specta]
-pub async fn udp_haptic_remove(
-    handle: State<'_, AppHandle>,
-    mac: [u8; 6],
-) -> Result<(), IpcError> {
+pub async fn udp_haptic_remove(handle: State<'_, AppHandle>, mac: [u8; 6]) -> Result<(), IpcError> {
     let key = crate::udp_haptic::save_settings_key();
     let mut list = crate::udp_haptic::load_from_settings_json(
         &handle.db.get_setting(key)?.unwrap_or_default(),
     );
     list.retain(|t| t.mac != mac);
-    handle.db.set_setting(key, &serde_json::to_string(&list).unwrap_or_default())?;
+    handle
+        .db
+        .set_setting(key, &serde_json::to_string(&list).unwrap_or_default())?;
     Ok(())
 }
 
@@ -1261,8 +1267,8 @@ pub async fn apply_update() -> Result<crate::updater::UpdateInfo, IpcError> {
 /// warning banner with a 1-click fix.
 #[tauri::command]
 #[specta::specta]
-pub async fn steam_blacklist_check() -> Result<crate::steam_blacklist::SteamBlacklistStatus, IpcError>
-{
+pub async fn steam_blacklist_check(
+) -> Result<crate::steam_blacklist::SteamBlacklistStatus, IpcError> {
     Ok(crate::steam_blacklist::check())
 }
 

@@ -4,6 +4,7 @@
 //! - DualSense USB report 0x01 (64 bytes; buf[0]=report ID, gyro at buf[16], accel at buf[22]).
 //! - DualSense BT report 0x31 (78 bytes; buf[0]=0x31, buf[1]=tag, payload shifted +1 vs USB → gyro at buf[18], accel at buf[24]). Trailing 4-byte CRC32 ignored on input.
 //! - DualShock 4 USB report 0x01 (64 bytes; gyro at buf[14], accel at buf[20]).
+//!
 //! Offsets follow pydualsense / hid-playstation canonical layout: hidapi returns
 //! the report ID at buf[0] for numbered reports, so payload-relative offsets must
 //! be biased by +1 (USB) or +2 (BT, ID + tag).

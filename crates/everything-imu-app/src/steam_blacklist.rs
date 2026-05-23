@@ -63,7 +63,7 @@ fn check_valid(config: &Vdf) -> Result<(), BlacklistError> {
         .value
         .get_obj()
         .and_then(|o| o.get("Software"))
-        .map_or(false, |s| !s.is_empty())
+        .is_some_and(|s| !s.is_empty())
         .then_some(())
         .ok_or(BlacklistError::Invalid)
 }
@@ -73,7 +73,7 @@ fn get_blacklist<'a>(config: &'a Vdf<'a>) -> Option<&'a str> {
         .value
         .get_obj()?
         .get("controller_blacklist")?
-        .get(0)?
+        .first()?
         .get_str()
 }
 

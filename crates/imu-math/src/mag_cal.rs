@@ -119,11 +119,7 @@ fn axis_bin(v: f32) -> usize {
 pub fn coverage(points: &[[f32; 3]], center: [f32; 3]) -> f32 {
     let mut seen = [false; 27];
     for p in points {
-        let d = [
-            p[0] - center[0],
-            p[1] - center[1],
-            p[2] - center[2],
-        ];
+        let d = [p[0] - center[0], p[1] - center[1], p[2] - center[2]];
         let norm = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
         if norm < f32::EPSILON {
             continue;
@@ -182,13 +178,8 @@ mod tests {
         let center = [12.0, -30.0, 7.5];
         let pts = sphere_points(center, 48.0, 12);
         let fit = fit_sphere(&pts).expect("fit");
-        for k in 0..3 {
-            assert!(
-                (fit.center[k] - center[k]).abs() < 1e-2,
-                "axis {k}: got {} want {}",
-                fit.center[k],
-                center[k],
-            );
+        for (k, (got, want)) in fit.center.iter().zip(center.iter()).enumerate() {
+            assert!((got - want).abs() < 1e-2, "axis {k}: got {got} want {want}",);
         }
         assert!((fit.radius - 48.0).abs() < 1e-2, "radius {}", fit.radius);
         assert!(fit.residual < 1e-2, "residual {}", fit.residual);
@@ -237,8 +228,8 @@ mod tests {
         let center = [-8.0, 14.0, 22.0];
         let pts = sphere_points(center, 45.0, 12);
         let cal = calibrate(&pts).expect("calibrate");
-        for k in 0..3 {
-            assert!((cal.offset[k] - center[k]).abs() < 1e-2);
+        for (got, want) in cal.offset.iter().zip(center.iter()) {
+            assert!((got - want).abs() < 1e-2);
         }
         assert!(cal.coverage > 0.99);
     }

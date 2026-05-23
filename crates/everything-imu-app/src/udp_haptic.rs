@@ -143,7 +143,10 @@ mod tests {
 
     #[test]
     fn synth_mac_is_stable() {
-        assert_eq!(synth_mac("192.168.0.42", 7000), synth_mac("192.168.0.42", 7000));
+        assert_eq!(
+            synth_mac("192.168.0.42", 7000),
+            synth_mac("192.168.0.42", 7000)
+        );
     }
 
     #[test]
