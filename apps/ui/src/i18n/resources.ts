@@ -100,6 +100,7 @@ export const resources = {
         open_data_folder: "Open data folder",
         reset_yaw: "Reset Yaw",
         reset_full: "Reset Full",
+        reset_mounting: "Reset Mounting",
         rename: "Rename",
         hide: "Hide",
         save: "Save",
@@ -165,6 +166,8 @@ export const resources = {
           "Calibrate the magnetometer below before it is fed to fusion. An uncalibrated magnetometer corrupts yaw worse than gyro drift alone.",
         no_magnetometer:
           "This device has no magnetometer. Yaw relies on gyro integration and the on-device reset gestures.",
+        yaw_drift_warning:
+          "No magnetometer — yaw drifts when you rotate. Reset Yaw facing forward, or use Reset Mounting after strapping the tracker.",
         rotation_offset:
           "Offset is applied client-side to outgoing rotation packets. Body assignment and mounting model live on SlimeVR-Server.",
         gyro_scale:
@@ -570,6 +573,7 @@ export const resources = {
         open_data_folder: "Abrir carpeta de datos",
         reset_yaw: "Reset Yaw",
         reset_full: "Reset Completo",
+        reset_mounting: "Reset Montaje",
         rename: "Renombrar",
         hide: "Ocultar",
         save: "Guardar",
@@ -635,6 +639,8 @@ export const resources = {
           "Calibra el magnetómetro abajo antes de alimentarlo a la fusión. Un magnetómetro sin calibrar corrompe el yaw peor que la deriva del giroscopio.",
         no_magnetometer:
           "Este dispositivo no tiene magnetómetro. El yaw depende de la integración del giroscopio y de los gestos de reinicio del dispositivo.",
+        yaw_drift_warning:
+          "Sin magnetómetro — el yaw deriva al girar. Usa Reset Yaw mirando al frente, o Reset Montaje tras colocar el tracker.",
         rotation_offset:
           "El offset se aplica en cliente sobre los paquetes de rotación salientes. La asignación corporal y el modelo de montaje viven en SlimeVR-Server.",
         gyro_scale:

@@ -5,6 +5,8 @@ import {
   Funnel,
   MagnifyingGlass,
   Plugs,
+  Target,
+  Warning,
 } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -325,8 +327,25 @@ function DeviceCard({
             }}
             icon={<ArrowsClockwise size={11} />}
           />
+          <InlineBtn
+            title={t("actions.reset_mounting")}
+            onClick={(e) => {
+              e.stopPropagation();
+              void api.requestReset(d.mac, "mounting");
+            }}
+            icon={<Target size={11} />}
+          />
         </div>
       </div>
+      {!d.has_magnetometer && (
+        <div
+          className="flex items-start gap-1.5 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2 py-1 text-[10px] leading-tight text-[var(--fg-muted)]"
+          title={t("hints.no_magnetometer")}
+        >
+          <Warning size={11} className="mt-[1px] shrink-0 text-[var(--accent)]" />
+          <span>{t("hints.yaw_drift_warning")}</span>
+        </div>
+      )}
     </div>
   );
 }
