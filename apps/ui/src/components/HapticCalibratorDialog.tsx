@@ -73,6 +73,7 @@ export function HapticCalibratorDialog({
   }
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: modal backdrop pattern; inner <dialog> owns focus + a11y semantics, this wrapper only intercepts outside-click / Escape.
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}

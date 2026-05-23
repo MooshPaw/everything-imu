@@ -43,7 +43,8 @@ export const resources = {
         how_body:
           "VRChat broadcasts avatar parameters over OSC. Bind a contact-driven parameter to any device with a rumble motor. Proximity mode uses the 0–1 float as intensity; Pulse mode fires a fixed buzz on contact.",
         test_title: "Test rumble",
-        test_hint: "Click a device to pulse its motor for ~400 ms. Confirms the device receives commands independent of the OSC bridge.",
+        test_hint:
+          "Click a device to pulse its motor for ~400 ms. Confirms the device receives commands independent of the OSC bridge.",
       },
       status: {
         live: "live",
@@ -516,7 +517,8 @@ export const resources = {
         how_body:
           "VRChat transmite parámetros del avatar por OSC. Vincula un parámetro de contacto a cualquier dispositivo con motor de vibración. El modo Proximidad usa el flotante 0–1 como intensidad; el modo Pulso dispara una vibración fija al contacto.",
         test_title: "Probar vibración",
-        test_hint: "Haz clic en un dispositivo para pulsar su motor ~400 ms. Confirma que el dispositivo recibe comandos independiente del puente OSC.",
+        test_hint:
+          "Haz clic en un dispositivo para pulsar su motor ~400 ms. Confirma que el dispositivo recibe comandos independiente del puente OSC.",
       },
       status: {
         live: "en vivo",

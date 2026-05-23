@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { useLatencyStore } from "../stores/useLatencyStore";
 import { macKey } from "../lib/macFormat";
+import { useLatencyStore } from "../stores/useLatencyStore";
 
 /// Compact connection-quality bars + packet-loss% + rate. Reads the
 /// latency stream (already running) and derives loss as

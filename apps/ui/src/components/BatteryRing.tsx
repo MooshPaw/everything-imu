@@ -27,7 +27,15 @@ export function BatteryRing({
   return (
     <span className="inline-flex items-center gap-1.5" title={`${pct}%`}>
       <span className="relative inline-flex" style={{ width: size, height: size }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+        <svg
+          width={size}
+          height={size}
+          viewBox={`0 0 ${size} ${size}`}
+          className="-rotate-90"
+          role="img"
+          aria-label={`${pct}%`}
+        >
+          <title>{`${pct}%`}</title>
           <circle
             cx={size / 2}
             cy={size / 2}

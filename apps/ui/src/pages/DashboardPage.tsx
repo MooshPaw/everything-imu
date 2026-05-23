@@ -295,7 +295,9 @@ function GroupBlock({
       </div>
       {/* perDevSettings is reserved for future per-tracker badges inside the
           group block; reference it once so the prop isn't flagged unused. */}
-      <span hidden aria-hidden="true">{JSON.stringify(perDevSettings).length}</span>
+      <span hidden aria-hidden="true">
+        {JSON.stringify(perDevSettings).length}
+      </span>
     </div>
   );
 }

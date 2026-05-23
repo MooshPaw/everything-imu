@@ -264,9 +264,7 @@ export function PerDeviceConfig({
           </span>
           <button
             type="button"
-            onClick={() =>
-              setSettings((prev) => (prev ? { ...prev, gyro_scale: 1.0 } : prev))
-            }
+            onClick={() => setSettings((prev) => (prev ? { ...prev, gyro_scale: 1.0 } : prev))}
             className="rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] px-2 py-1 text-[10px] text-[var(--fg-secondary)] hover:bg-[var(--warn-soft)] hover:text-[var(--accent)]"
           >
             {t("actions.reset")}

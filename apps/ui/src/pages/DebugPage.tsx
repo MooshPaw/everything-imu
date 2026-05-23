@@ -1,11 +1,11 @@
 import { useTranslation } from "react-i18next";
+import { macHex, macKey } from "../lib/macFormat";
 import { useBiasStore } from "../stores/useBiasStore";
 import { useConnectionStore } from "../stores/useConnectionStore";
 import { useDeviceStore } from "../stores/useDeviceStore";
 import { useImuStreamStore } from "../stores/useImuStreamStore";
 import { useLatencyStore } from "../stores/useLatencyStore";
 import { useTrackerStore } from "../stores/useTrackerStore";
-import { macHex, macKey } from "../lib/macFormat";
 
 /// Developer-facing diagnostics. Surfaces raw values straight out of the
 /// existing stores — no fresh subscriptions, no new IPC — so it doubles
@@ -113,9 +113,7 @@ export function DebugPage() {
                 </dd>
                 <dt className="text-[var(--fg-muted)]">jitter / send p95 (µs)</dt>
                 <dd className="metric-num text-[var(--fg-primary)]">
-                  {lat
-                    ? `${lat.jitter_us.toFixed(0)} / ${lat.send_us_p95.toFixed(0)}`
-                    : "—"}
+                  {lat ? `${lat.jitter_us.toFixed(0)} / ${lat.send_us_p95.toFixed(0)}` : "—"}
                 </dd>
                 <dt className="text-[var(--fg-muted)]">dropped / window</dt>
                 <dd className="metric-num text-[var(--fg-primary)]">

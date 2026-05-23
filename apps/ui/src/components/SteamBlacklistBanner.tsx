@@ -20,6 +20,7 @@ export function SteamBlacklistBanner() {
     if (res.status === "ok") setStatus(res.data);
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only check; refresh is stable and re-running on each render would hammer the IPC.
   useEffect(() => {
     void refresh();
   }, []);

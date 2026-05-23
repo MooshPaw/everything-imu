@@ -106,7 +106,11 @@ export function HapticsPage() {
           aria-live="polite"
           className="text-[11px] uppercase tracking-[0.12em] text-[var(--fg-muted)]"
         >
-          {status === "saving" ? t("hints.saving") : status === "saved" ? t("msg.generic_saved") : ""}
+          {status === "saving"
+            ? t("hints.saving")
+            : status === "saved"
+              ? t("msg.generic_saved")
+              : ""}
         </span>
       </header>
 
@@ -177,6 +181,7 @@ export function HapticsPage() {
           <div className="flex flex-col gap-3">
             {config.rules.map((rule, idx) => (
               <RuleRow
+                // biome-ignore lint/suspicious/noArrayIndexKey: rules can have duplicate osc_address and are re-ordered via remove/patch; index is the stable identity.
                 key={`${rule.osc_address}|${idx}`}
                 rule={rule}
                 devices={rumbleDevices}

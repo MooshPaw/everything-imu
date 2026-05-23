@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { Mac, MagCalibrationDto, MagCalProgressDto } from "../api/client";
 import { api } from "../api/client";
-import type { MagCalibrationDto, MagCalProgressDto, Mac } from "../api/client";
 
 /// Coverage at which the fit is geometrically meaningful and "Finish" unlocks.
 const FINISH_THRESHOLD = 0.7;
@@ -175,9 +175,7 @@ export function MagCalibrationPanel({ mac }: { mac: Mac }) {
           {t("mag_cal.status_uncalibrated")}
         </span>
       )}
-      {phase === "error" && error && (
-        <p className="text-[10px] text-[var(--danger)]">{error}</p>
-      )}
+      {phase === "error" && error && <p className="text-[10px] text-[var(--danger)]">{error}</p>}
       <div className="flex gap-2">
         <button
           type="button"
@@ -209,14 +207,7 @@ function CoverageRing({ fraction }: { fraction: number }) {
   const clamped = Math.max(0, Math.min(1, fraction));
   return (
     <svg width={64} height={64} viewBox="0 0 64 64" aria-hidden="true">
-      <circle
-        cx={32}
-        cy={32}
-        r={r}
-        fill="none"
-        stroke="var(--border-subtle)"
-        strokeWidth={6}
-      />
+      <circle cx={32} cy={32} r={r} fill="none" stroke="var(--border-subtle)" strokeWidth={6} />
       <circle
         cx={32}
         cy={32}

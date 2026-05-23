@@ -257,6 +257,7 @@ function DeviceCard({
   if (d.has_battery) caps.push("battery");
   if (d.has_rumble) caps.push("rumble");
   return (
+    // biome-ignore lint/a11y/useSemanticElements: card contains nested interactive elements (checkbox, inline reset buttons); using a <button> here would nest interactives. div + role=button is intentional.
     <div
       role="button"
       tabIndex={0}
