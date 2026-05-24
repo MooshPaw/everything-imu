@@ -5,19 +5,41 @@
 use crate::device::{Device, DeviceCapabilities, DeviceError, DeviceKind, DeviceMetadata};
 use crate::events::ChannelInfo;
 use crate::DeviceId;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
+use tokio::task::JoinHandle;
+
+/// Monotonic counter feeding [`MockDevice::new`] so each mock has a unique
+/// locally-administered MAC. Without this, two mocks in the same process
+/// collide on `DeviceId.mac` and `AppState`'s mac-keyed lookups return the
+/// wrong device.
+static MOCK_MAC_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 pub struct MockDevice {
     pub metadata: DeviceMetadata,
     /// Pre-built event sequence — emitted in order on `start()`.
     pub script: Arc<Mutex<Vec<ChannelInfo>>>,
+    /// Handle for the emitter task, populated by `start` and joined by `stop`.
+    task: Option<JoinHandle<()>>,
 }
 
 impl MockDevice {
     pub fn new(serial: &str, kind: DeviceKind) -> Self {
+        let n = MOCK_MAC_COUNTER.fetch_add(1, Ordering::Relaxed);
+        // Locally-administered, unicast MAC: low bit of first byte = 0, second
+        // bit = 1. Encodes the counter across the remaining 5 bytes so up to
+        // 2^40 mocks per process are unique.
+        let mac = [
+            0x02,
+            ((n >> 32) & 0xFF) as u8,
+            ((n >> 24) & 0xFF) as u8,
+            ((n >> 16) & 0xFF) as u8,
+            ((n >> 8) & 0xFF) as u8,
+            (n & 0xFF) as u8,
+        ];
         let id = DeviceId {
-            mac: [0x02, 0x00, 0x00, 0x00, 0x00, 0x01],
+            mac,
             serial: serial.into(),
         };
         Self {
@@ -33,6 +55,7 @@ impl MockDevice {
                 },
             },
             script: Arc::new(Mutex::new(Vec::new())),
+            task: None,
         }
     }
 
@@ -49,9 +72,15 @@ impl Device for MockDevice {
     }
 
     async fn start(&mut self) -> Result<mpsc::Receiver<ChannelInfo>, DeviceError> {
+        // Honour the documented `Device::start` contract: a second start
+        // without an intervening stop must error rather than silently
+        // double-spawning the emitter.
+        if self.task.as_ref().is_some_and(|h| !h.is_finished()) {
+            return Err(DeviceError::Hid("MockDevice already started".into()));
+        }
         let (tx, rx) = mpsc::channel(64);
         let script = self.script.clone();
-        tokio::spawn(async move {
+        let handle = tokio::spawn(async move {
             let evs: Vec<ChannelInfo> = std::mem::take(&mut *script.lock().await);
             for e in evs {
                 if tx.send(e).await.is_err() {
@@ -59,10 +88,15 @@ impl Device for MockDevice {
                 }
             }
         });
+        self.task = Some(handle);
         Ok(rx)
     }
 
     async fn stop(&mut self) -> Result<(), DeviceError> {
+        if let Some(h) = self.task.take() {
+            h.abort();
+            let _ = h.await;
+        }
         Ok(())
     }
 

@@ -12,7 +12,6 @@ default = []
 mock = []
 
 [dependencies]
-imu-math = { path = "../imu-math" }
 tokio = { workspace = true, features = ["sync", "rt", "macros", "time"] }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
