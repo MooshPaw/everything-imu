@@ -26,6 +26,10 @@ fn spawn_tracker_and_samples(app: &TauriAppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_millis(33));
+        // Default behavior fires every missed tick back-to-back when the
+        // loop body lags, drowning the UI in stale events. `Skip` keeps
+        // cadence honest at the cost of dropping intermediate snapshots.
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             interval.tick().await;
             let handle = match app.try_state::<AppHandle>() {
@@ -87,6 +91,7 @@ fn spawn_bias(app: &TauriAppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(1));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             interval.tick().await;
             let handle = match app.try_state::<AppHandle>() {
@@ -116,6 +121,7 @@ fn spawn_latency(app: &TauriAppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(1));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             interval.tick().await;
             let handle = match app.try_state::<AppHandle>() {
@@ -155,6 +161,7 @@ fn spawn_connection_status(app: &TauriAppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(1));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             interval.tick().await;
             let handle = match app.try_state::<AppHandle>() {

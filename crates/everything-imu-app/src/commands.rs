@@ -112,10 +112,10 @@ pub async fn set_device_rotation_offset(
     if !deg.is_finite() {
         return Err(IpcError::Invalid("non-finite degrees".into()));
     }
-    let key = format!(
-        "rotation_offset_deg:{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
-        mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]
-    );
+    // Lower-case hex to match `mac_key` and the `SqliteSettingsStore::key_for`
+    // helper. Mixed casing here would persist to a different DB row than the
+    // pipeline reads from on startup, silently dropping the user's offset.
+    let key = format!("rotation_offset_deg:{}", mac_key(mac));
     handle.db.set_setting(&key, &deg.to_string())?;
     let _ = handle.state.set_rotation_offset_deg(mac, deg).await;
     Ok(())
@@ -275,13 +275,13 @@ pub async fn get_per_device_settings(
         .get_setting(&format!("magnetometer_enabled:{mk}"))?
         .map(|s| s == "1" || s.eq_ignore_ascii_case("true"))
         .unwrap_or(has_mag_cal);
+    // Lower-case hex to match the writer side (`set_device_rotation_offset`
+    // and the trait-method backed `SqliteSettingsStore::key_for`).
     let rotation_offset_deg = handle
         .db
-        .get_setting(&format!(
-            "rotation_offset_deg:{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
-            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]
-        ))?
-        .and_then(|s| s.parse().ok())
+        .get_setting(&format!("rotation_offset_deg:{mk}"))?
+        .and_then(|s| s.parse::<f32>().ok())
+        .filter(|v| v.is_finite())
         .unwrap_or(0.0_f32);
     let gyro_scale = handle
         .db
@@ -921,10 +921,7 @@ pub async fn apply_calibration_wizard(
         .db
         .set_setting(&format!("mounting_orientation:{mk}"), mounting.to_setting())?;
     handle.db.set_setting(
-        &format!(
-            "rotation_offset_deg:{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
-            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]
-        ),
+        &format!("rotation_offset_deg:{mk}"),
         &rotation_offset_deg.to_string(),
     )?;
     handle.db.set_setting(
