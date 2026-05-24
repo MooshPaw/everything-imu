@@ -95,6 +95,11 @@ async fn serve(
 ) -> ServeExit {
     let mut state = LoopState::new();
     let mut buf = [0u8; 2048];
+    // Rules are immutable for the lifetime of a single serve() — any change
+    // returns ServeExit::Rebind and re-enters this function. Snapshot once
+    // here instead of cloning the Vec on every received packet (VRChat
+    // proximity streams can hit hundreds of packets per second).
+    let rules = config_rx.borrow().rules.clone();
 
     loop {
         let now = Instant::now();
@@ -115,9 +120,6 @@ async fn serve(
                 match recv {
                     Ok((len, _addr)) => {
                         state.last_packet = Instant::now();
-                        // Clone out of the watch::Ref so it is not held across
-                        // the await below (the Ref is not Send).
-                        let rules = config_rx.borrow().rules.clone();
                         if let Ok((_, packet)) = rosc::decoder::decode_udp(&buf[..len]) {
                             handle_packet(&packet, &rules, &mut state, sink, discovery_tx).await;
                         }

@@ -88,7 +88,11 @@ async fn run_doctor(server: SocketAddr) -> i32 {
 
     let mut any_fail = false;
 
-    let hid = match JoyconFactory::list_paired() {
+    // Single hidapi probe — `list_paired` initializes the singleton on first
+    // call. Reusing the result avoids paying for a second OS-level scan
+    // and surfaces any error consistently to both checks below.
+    let nintendo_result = JoyconFactory::list_paired();
+    let hid = match &nintendo_result {
         Ok(_) => CheckOutcome::Pass("hidapi singleton initialized".into()),
         Err(e) => {
             any_fail = true;
@@ -97,7 +101,7 @@ async fn run_doctor(server: SocketAddr) -> i32 {
     };
     line("hidapi", &hid);
 
-    let nintendo = JoyconFactory::list_paired().unwrap_or_default();
+    let nintendo = nintendo_result.unwrap_or_default();
     let jc2_nearby = JoyconFactory::list_nearby_jc2(1200)
         .await
         .unwrap_or_default();
