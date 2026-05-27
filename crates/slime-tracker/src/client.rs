@@ -87,6 +87,13 @@ pub struct ClientStats {
     /// the handshake every 5 s.
     pub handshake_confirmed: bool,
     pub last_inbound_ms_unix: u64,
+    /// Number of times the connection-lost watchdog has flipped
+    /// `handshake_confirmed` back to `false` after a previous successful
+    /// handshake. A non-zero, increasing value tells the UI that the server
+    /// is intermittent rather than absent.
+    pub handshake_reset_count: u64,
+    /// `Instant`-millis when the most recent reset occurred (0 = never).
+    pub last_reset_ms_unix: u64,
 }
 
 pub struct SlimeClient {
@@ -98,6 +105,8 @@ pub struct SlimeClient {
     last_send_ms_unix: Arc<AtomicU64>,
     last_handshake_ms_unix: Arc<AtomicU64>,
     last_inbound_ms_unix: Arc<AtomicU64>,
+    handshake_reset_count: Arc<AtomicU64>,
+    last_reset_ms_unix: Arc<AtomicU64>,
     receive_task: tokio::task::JoinHandle<()>,
     watchdog_task: tokio::task::JoinHandle<()>,
 }
@@ -140,6 +149,8 @@ impl SlimeClient {
         let last_send_ms_unix = Arc::new(AtomicU64::new(0));
         let last_handshake_ms_unix = Arc::new(AtomicU64::new(0));
         let last_inbound_ms_unix = Arc::new(AtomicU64::new(0));
+        let handshake_reset_count = Arc::new(AtomicU64::new(0));
+        let last_reset_ms_unix = Arc::new(AtomicU64::new(0));
 
         // Send initial handshake before spawning the receive loop so the
         // socket has something to receive.
@@ -165,6 +176,8 @@ impl SlimeClient {
             packets_sent.clone(),
             last_send_ms_unix.clone(),
             last_inbound_ms_unix.clone(),
+            handshake_reset_count.clone(),
+            last_reset_ms_unix.clone(),
         ));
 
         Ok(Self {
@@ -176,6 +189,8 @@ impl SlimeClient {
             last_send_ms_unix,
             last_handshake_ms_unix,
             last_inbound_ms_unix,
+            handshake_reset_count,
+            last_reset_ms_unix,
             receive_task,
             watchdog_task,
         })
@@ -201,6 +216,8 @@ impl SlimeClient {
             server_supports_bundle: self.server_supports_bundle.load(Ordering::Acquire),
             handshake_confirmed: self.handshake_confirmed.load(Ordering::Acquire),
             last_inbound_ms_unix: self.last_inbound_ms_unix.load(Ordering::Acquire),
+            handshake_reset_count: self.handshake_reset_count.load(Ordering::Relaxed),
+            last_reset_ms_unix: self.last_reset_ms_unix.load(Ordering::Acquire),
         }
     }
 
@@ -517,6 +534,8 @@ async fn handshake_watchdog(
     packets_sent: Arc<AtomicU64>,
     last_send_ms_unix: Arc<AtomicU64>,
     last_inbound_ms_unix: Arc<AtomicU64>,
+    handshake_reset_count: Arc<AtomicU64>,
+    last_reset_ms_unix: Arc<AtomicU64>,
 ) {
     loop {
         tokio::time::sleep(Duration::from_millis(500)).await;
@@ -530,6 +549,12 @@ async fn handshake_watchdog(
             #[cfg(feature = "client")]
             tracing::warn!("SlimeVR connection timeout. Handshake reset.");
             handshake_confirmed.store(false, Ordering::Release);
+            // Only count the true→false transition; without this guard the
+            // counter would tick once every 500 ms while disconnected,
+            // which would make the UI look like the server is flapping
+            // even though we're just in a stable disconnected state.
+            handshake_reset_count.fetch_add(1, Ordering::Relaxed);
+            last_reset_ms_unix.store(now_ms_unix(), Ordering::Release);
         }
 
         if !handshake_confirmed.load(Ordering::Acquire) {
@@ -618,6 +643,24 @@ mod tests {
             flag.store(bundle_bit, Ordering::Release);
         }
         assert!(!flag.load(Ordering::Acquire));
+    }
+
+    #[tokio::test]
+    async fn handshake_reset_counter_starts_at_zero() {
+        let listener = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let info = HandshakeInfo {
+            board: BoardType::Custom,
+            imu: ImuType::Lsm6ds3trc,
+            mcu: McuType::Unknown,
+            mag_status: 0,
+            firmware: "test".into(),
+            mac_address: [1, 2, 3, 4, 5, 6],
+        };
+        let client = SlimeClient::connect(addr, &info).await.unwrap();
+        let stats = client.stats();
+        assert_eq!(stats.handshake_reset_count, 0);
+        assert_eq!(stats.last_reset_ms_unix, 0);
     }
 
     #[tokio::test]
