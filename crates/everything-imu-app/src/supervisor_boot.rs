@@ -6,6 +6,7 @@ use crate::state::AppHandle;
 use device_dualsense::DualSenseFactory;
 use device_joycon::JoyconFactory;
 use device_psmove::PsMoveFactory;
+use device_tesla::{TeslaConfig, TeslaFactory};
 use device_traits::DeviceFactory;
 use device_wii::WiiFactory;
 use everything_imu_core::Supervisor;
@@ -43,13 +44,14 @@ pub fn spawn(app: &TauriAppHandle, auto_start_synthetic: bool) {
                 }
             });
         }
-        let factories: Vec<Arc<dyn DeviceFactory>> = if auto_start_synthetic {
+        let mut factories: Vec<Arc<dyn DeviceFactory>> = if auto_start_synthetic {
             // Spawn one of each kind so the UI can be exercised against a
             // mixed device pool without paired hardware.
             vec![
                 Arc::new(JoyconFactory::synthetic(1)),
                 Arc::new(DualSenseFactory::synthetic(1)),
                 Arc::new(PsMoveFactory::synthetic(1)),
+                Arc::new(TeslaFactory::synthetic()),
             ]
         } else {
             vec![
@@ -59,6 +61,19 @@ pub fn spawn(app: &TauriAppHandle, auto_start_synthetic: bool) {
                 Arc::new(WiiFactory::new()),
             ]
         };
+        // Opt-in Tesla bridge driven by env vars. Same gating as the
+        // headless CLI so the UI path stays a no-op for users who don't
+        // configure their Fleet API credentials.
+        if std::env::var("EIMU_ENABLE_TESLA").ok().as_deref() == Some("1") {
+            if let Some(cfg) = TeslaConfig::from_env() {
+                tracing::info!("tesla bridge: live Fleet API mode enabled");
+                factories.push(Arc::new(TeslaFactory::new(cfg)));
+            } else if !auto_start_synthetic {
+                tracing::warn!(
+                    "EIMU_ENABLE_TESLA=1 but TESLA_REFRESH_TOKEN / TESLA_CLIENT_ID / TESLA_VEHICLE_ID not all set; skipping"
+                );
+            }
+        }
         let sup = Supervisor::new(handle.state.clone(), factories);
         if let Err(e) = sup.run().await {
             tracing::warn!(error = %e, "supervisor exited");
