@@ -15,6 +15,14 @@ use std::time::{Duration, Instant};
 
 const WINDOW: usize = 256;
 
+/// Number of [`LatencySnapshot`]s kept by [`LatencyHistory`].
+///
+/// 120 entries × 1 s sampling = two minutes of history, which fits in a
+/// sparkline tile without scrolling and tracks roughly the timescale a user
+/// will notice "jitter went up after I switched USB ports". Tunable per
+/// device if needed; the cost is one `LatencySnapshot` per entry (~32 B).
+pub const DEFAULT_HISTORY_LEN: usize = 120;
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct LatencySnapshot {
     /// Inter-batch interval percentiles (microseconds).
@@ -142,6 +150,69 @@ fn stddev_us(values: &[u32]) -> f32 {
     var.sqrt() as f32
 }
 
+/// Bounded-capacity ring of past [`LatencySnapshot`]s suitable for rendering
+/// a sparkline chart in the UI without growing memory unboundedly.
+///
+/// Append cadence is owned by the caller (typically the pipeline pushes one
+/// snapshot per second). The ring evicts the oldest entry once full so the
+/// chart always shows the most recent `cap` seconds of pipeline health.
+#[derive(Debug, Clone)]
+pub struct LatencyHistory {
+    samples: VecDeque<LatencySnapshot>,
+    cap: usize,
+}
+
+impl LatencyHistory {
+    pub fn new(cap: usize) -> Self {
+        let cap = cap.max(1);
+        Self {
+            samples: VecDeque::with_capacity(cap.min(1024)),
+            cap,
+        }
+    }
+
+    /// Append a snapshot, evicting the oldest entry if the buffer is full.
+    pub fn push(&mut self, snap: LatencySnapshot) {
+        if self.samples.len() == self.cap {
+            self.samples.pop_front();
+        }
+        self.samples.push_back(snap);
+    }
+
+    pub fn len(&self) -> usize {
+        self.samples.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.samples.is_empty()
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.cap
+    }
+
+    /// Snapshot the ring as a vector for serialisation / IPC. Oldest first.
+    /// Cheap — `LatencySnapshot` is `Copy`-able 32-byte struct.
+    pub fn snapshot(&self) -> Vec<LatencySnapshot> {
+        self.samples.iter().copied().collect()
+    }
+
+    /// Most recent entry, if any.
+    pub fn latest(&self) -> Option<LatencySnapshot> {
+        self.samples.back().copied()
+    }
+
+    pub fn clear(&mut self) {
+        self.samples.clear();
+    }
+}
+
+impl Default for LatencyHistory {
+    fn default() -> Self {
+        Self::new(DEFAULT_HISTORY_LEN)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -184,6 +255,63 @@ mod tests {
         let snap = t.snapshot();
         // median = 1000, gaps of 3000 > 2*1000 → counted
         assert!(snap.dropped_estimate >= 4);
+    }
+
+    #[test]
+    fn history_appends_in_order_and_caps() {
+        let mut h = LatencyHistory::new(3);
+        for i in 0..5u32 {
+            let snap = LatencySnapshot {
+                interval_us_p50: i as f32,
+                ..Default::default()
+            };
+            h.push(snap);
+        }
+        assert_eq!(h.len(), 3, "buffer must cap at requested capacity");
+        let snap = h.snapshot();
+        let p50s: Vec<u32> = snap.iter().map(|s| s.interval_us_p50 as u32).collect();
+        assert_eq!(p50s, vec![2, 3, 4], "oldest entries evicted first");
+        assert_eq!(h.latest().unwrap().interval_us_p50, 4.0);
+    }
+
+    #[test]
+    fn history_default_capacity_is_documented_constant() {
+        let h = LatencyHistory::default();
+        assert_eq!(h.capacity(), DEFAULT_HISTORY_LEN);
+    }
+
+    #[test]
+    fn history_empty_yields_no_latest() {
+        let h = LatencyHistory::new(8);
+        assert!(h.is_empty());
+        assert!(h.latest().is_none());
+        assert!(h.snapshot().is_empty());
+    }
+
+    #[test]
+    fn history_clear_drops_everything() {
+        let mut h = LatencyHistory::new(8);
+        h.push(LatencySnapshot::default());
+        h.clear();
+        assert!(h.is_empty());
+    }
+
+    #[test]
+    fn history_capacity_zero_treated_as_one() {
+        let mut h = LatencyHistory::new(0);
+        let s1 = LatencySnapshot {
+            interval_us_p50: 1.0,
+            ..Default::default()
+        };
+        let s2 = LatencySnapshot {
+            interval_us_p50: 2.0,
+            ..Default::default()
+        };
+        h.push(s1);
+        h.push(s2);
+        // Cap clamped to 1; only most recent retained.
+        assert_eq!(h.len(), 1);
+        assert_eq!(h.latest().unwrap().interval_us_p50, 2.0);
     }
 
     #[test]
