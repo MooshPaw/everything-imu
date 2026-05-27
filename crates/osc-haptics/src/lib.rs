@@ -15,10 +15,14 @@
 pub mod config;
 pub mod listener;
 pub mod mapping;
+pub mod sniffer;
+pub mod test_fire;
 
-pub use config::{HapticConfig, HapticMode, HapticRule, DEFAULT_OSC_PORT};
+pub use config::{normalize_address, HapticConfig, HapticMode, HapticRule, DEFAULT_OSC_PORT};
 pub use listener::{run_bridge, RumbleSink};
 pub use mapping::{resolve, HapticAction};
+pub use sniffer::{Sniffer, SnifferEntry};
+pub use test_fire::{simulate_dispatch, TestFireOutcome};
 
 /// Sink the bridge drives. Implemented by the app's `AppState` so the bridge
 /// stays decoupled from `core` — dependency inversion.

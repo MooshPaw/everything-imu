@@ -39,6 +39,60 @@ pub struct HapticRule {
     pub mode: HapticMode,
 }
 
+/// Default VRChat avatar-parameter address prefix.
+///
+/// Users frequently type just the parameter name (`Haptics_Chest`) into the
+/// UI; without normalisation the listener would never match VRChat's outgoing
+/// `/avatar/parameters/Haptics_Chest`. [`normalize_address`] applies this
+/// prefix when the input lacks any slash.
+pub const VRCHAT_PARAM_PREFIX: &str = "/avatar/parameters/";
+
+/// Normalise a user-entered OSC address.
+///
+/// - Empty / whitespace-only → empty string (caller may reject the rule).
+/// - Bare parameter name without `/` → prefixed with [`VRCHAT_PARAM_PREFIX`].
+/// - Starts with `/` → passed through verbatim (advanced users targeting
+///   non-VRChat senders like Resonite or VirtualMotionCapture stay untouched).
+pub fn normalize_address(raw: &str) -> String {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    if trimmed.starts_with('/') {
+        return trimmed.to_string();
+    }
+    format!("{VRCHAT_PARAM_PREFIX}{trimmed}")
+}
+
+impl HapticRule {
+    /// Construct a rule, applying [`normalize_address`] to the address.
+    pub fn new(osc_address: impl Into<String>, device_mac: [u8; 6], mode: HapticMode) -> Self {
+        Self {
+            osc_address: normalize_address(&osc_address.into()),
+            device_mac,
+            mode,
+        }
+    }
+
+    /// Re-normalise the address in place. Call after the user edits the
+    /// rule via the UI; idempotent.
+    pub fn normalize(&mut self) {
+        let next = normalize_address(&self.osc_address);
+        self.osc_address = next;
+    }
+}
+
+impl HapticConfig {
+    /// Normalise every rule's address in place. Use after loading config
+    /// from disk or after a UI edit batch to guarantee the listener's
+    /// runtime snapshot only ever holds fully-qualified addresses.
+    pub fn normalize_rules(&mut self) {
+        for r in &mut self.rules {
+            r.normalize();
+        }
+    }
+}
+
 /// Full haptic bridge configuration, persisted as JSON in the settings store.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HapticConfig {
@@ -54,5 +108,77 @@ impl Default for HapticConfig {
             listen_port: DEFAULT_OSC_PORT,
             rules: Vec::new(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalize_bare_param_gets_vrchat_prefix() {
+        assert_eq!(
+            normalize_address("Haptics_Chest"),
+            "/avatar/parameters/Haptics_Chest"
+        );
+    }
+
+    #[test]
+    fn normalize_full_path_unchanged() {
+        assert_eq!(
+            normalize_address("/avatar/parameters/Touch"),
+            "/avatar/parameters/Touch"
+        );
+        // Non-VRChat senders (Resonite, VMC) target their own roots — keep
+        // verbatim when the user already wrote a slash.
+        assert_eq!(normalize_address("/tracking/eye/CenterPitchYaw"),
+                   "/tracking/eye/CenterPitchYaw");
+    }
+
+    #[test]
+    fn normalize_trims_whitespace() {
+        assert_eq!(
+            normalize_address("  Foo  "),
+            "/avatar/parameters/Foo"
+        );
+    }
+
+    #[test]
+    fn normalize_empty_yields_empty() {
+        assert_eq!(normalize_address(""), "");
+        assert_eq!(normalize_address("   "), "");
+    }
+
+    #[test]
+    fn rule_new_normalises() {
+        let r = HapticRule::new("Foo", [0; 6], HapticMode::default());
+        assert_eq!(r.osc_address, "/avatar/parameters/Foo");
+    }
+
+    #[test]
+    fn normalize_rules_is_idempotent() {
+        let mut cfg = HapticConfig {
+            enabled: true,
+            listen_port: 9001,
+            rules: vec![
+                HapticRule {
+                    osc_address: "Bar".into(),
+                    device_mac: [0; 6],
+                    mode: HapticMode::default(),
+                },
+                HapticRule {
+                    osc_address: "/avatar/parameters/Already".into(),
+                    device_mac: [0; 6],
+                    mode: HapticMode::default(),
+                },
+            ],
+        };
+        cfg.normalize_rules();
+        assert_eq!(cfg.rules[0].osc_address, "/avatar/parameters/Bar");
+        assert_eq!(cfg.rules[1].osc_address, "/avatar/parameters/Already");
+        // Run twice; result stable.
+        cfg.normalize_rules();
+        assert_eq!(cfg.rules[0].osc_address, "/avatar/parameters/Bar");
+        assert_eq!(cfg.rules[1].osc_address, "/avatar/parameters/Already");
     }
 }
