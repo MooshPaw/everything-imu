@@ -133,8 +133,8 @@ impl MagCalWizard {
 
     fn maybe_refresh_progress(&mut self) {
         let n = self.samples.len();
-        let should_refresh = n.saturating_sub(self.last_coverage_refresh) >= self.coverage_refresh_every
-            || n < 32;
+        let should_refresh =
+            n.saturating_sub(self.last_coverage_refresh) >= self.coverage_refresh_every || n < 32;
         if !should_refresh {
             if let WizardState::Collecting { samples_taken, .. } = &mut self.state {
                 *samples_taken = n;
@@ -232,7 +232,11 @@ fn mean_centre(points: &[[f32; 3]]) -> [f32; 3] {
         sum[2] += p[2] as f64;
     }
     let n = points.len() as f64;
-    [(sum[0] / n) as f32, (sum[1] / n) as f32, (sum[2] / n) as f32]
+    [
+        (sum[0] / n) as f32,
+        (sum[1] / n) as f32,
+        (sum[2] / n) as f32,
+    ]
 }
 
 #[cfg(test)]
@@ -313,10 +317,7 @@ mod tests {
             other => panic!("expected Ready, got {other:?}"),
         };
         for (k, (got, want)) in cal.offset.iter().zip(centre.iter()).enumerate() {
-            assert!(
-                (got - want).abs() < 0.5,
-                "axis {k} got {got} want {want}",
-            );
+            assert!((got - want).abs() < 0.5, "axis {k} got {got} want {want}",);
         }
         assert!(cal.coverage >= MIN_ACCEPTABLE_COVERAGE);
         assert!(cal.residual < MAX_ACCEPTABLE_RESIDUAL);
@@ -372,7 +373,11 @@ mod tests {
         for _ in 0..100 {
             w.ingest([1.0, 1.0, 1.0]);
         }
-        assert_eq!(w.samples().len(), 32, "buffer must cap at requested capacity");
+        assert_eq!(
+            w.samples().len(),
+            32,
+            "buffer must cap at requested capacity"
+        );
     }
 
     #[test]

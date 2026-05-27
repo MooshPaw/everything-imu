@@ -330,7 +330,9 @@ impl AppState {
             agg.last_inbound_ms_unix = agg.last_inbound_ms_unix.max(s.last_inbound_ms_unix);
             agg.server_supports_bundle |= s.server_supports_bundle;
             agg.handshake_confirmed |= s.handshake_confirmed;
-            agg.handshake_reset_count = agg.handshake_reset_count.saturating_add(s.handshake_reset_count);
+            agg.handshake_reset_count = agg
+                .handshake_reset_count
+                .saturating_add(s.handshake_reset_count);
             agg.last_reset_ms_unix = agg.last_reset_ms_unix.max(s.last_reset_ms_unix);
         }
         agg

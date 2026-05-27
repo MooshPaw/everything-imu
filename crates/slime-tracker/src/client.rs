@@ -717,13 +717,10 @@ mod tests {
         // Drain one datagram from the listener and reply with anything
         // (the receive loop only cares that *some* packet came back).
         let mut buf = [0u8; 256];
-        let (n, from) = tokio::time::timeout(
-            Duration::from_secs(1),
-            listener.recv_from(&mut buf),
-        )
-        .await
-        .expect("listener recv timeout")
-        .unwrap();
+        let (n, from) = tokio::time::timeout(Duration::from_secs(1), listener.recv_from(&mut buf))
+            .await
+            .expect("listener recv timeout")
+            .unwrap();
         // Echo with a tiny well-formed PING packet (tag 10, seq 0).
         let reply: Vec<u8> = {
             let mut v = Vec::new();

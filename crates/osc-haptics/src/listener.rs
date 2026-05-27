@@ -325,7 +325,15 @@ async fn handle_packet(
         }
         OscPacket::Bundle(bundle) => {
             for inner in &bundle.content {
-                Box::pin(handle_packet(inner, rules, state, sink, discovery_tx, sniffer)).await;
+                Box::pin(handle_packet(
+                    inner,
+                    rules,
+                    state,
+                    sink,
+                    discovery_tx,
+                    sniffer,
+                ))
+                .await;
             }
         }
     }
@@ -514,11 +522,15 @@ mod tests {
             .iter()
             .map(|e| (e.address.clone(), e.clone()))
             .collect();
-        let a = by_addr.get("/avatar/parameters/A").expect("addr A captured");
+        let a = by_addr
+            .get("/avatar/parameters/A")
+            .expect("addr A captured");
         assert_eq!(a.count, 2, "two A packets");
         assert!((a.min_value - 0.1).abs() < 1e-4);
         assert!((a.max_value - 0.9).abs() < 1e-4);
-        let b = by_addr.get("/avatar/parameters/B").expect("addr B captured");
+        let b = by_addr
+            .get("/avatar/parameters/B")
+            .expect("addr B captured");
         assert_eq!(b.count, 1);
     }
 }

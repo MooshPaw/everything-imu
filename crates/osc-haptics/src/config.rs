@@ -131,16 +131,15 @@ mod tests {
         );
         // Non-VRChat senders (Resonite, VMC) target their own roots — keep
         // verbatim when the user already wrote a slash.
-        assert_eq!(normalize_address("/tracking/eye/CenterPitchYaw"),
-                   "/tracking/eye/CenterPitchYaw");
+        assert_eq!(
+            normalize_address("/tracking/eye/CenterPitchYaw"),
+            "/tracking/eye/CenterPitchYaw"
+        );
     }
 
     #[test]
     fn normalize_trims_whitespace() {
-        assert_eq!(
-            normalize_address("  Foo  "),
-            "/avatar/parameters/Foo"
-        );
+        assert_eq!(normalize_address("  Foo  "), "/avatar/parameters/Foo");
     }
 
     #[test]

@@ -106,7 +106,10 @@ mod tests {
             let frame = procedural_frame(t_us);
             let h = frame.heading_deg.unwrap();
             assert!(h.is_finite());
-            assert!((0.0..360.0).contains(&h), "heading {h} outside compass range");
+            assert!(
+                (0.0..360.0).contains(&h),
+                "heading {h} outside compass range"
+            );
         }
     }
 

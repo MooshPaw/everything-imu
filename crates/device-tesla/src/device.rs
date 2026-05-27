@@ -256,8 +256,8 @@ async fn stream_once(
         value: STREAM_COLUMNS,
         tag: config.vehicle_id.to_string(),
     };
-    let subscribe_payload = serde_json::to_string(&subscribe)
-        .map_err(|e| format!("subscribe encode: {e}"))?;
+    let subscribe_payload =
+        serde_json::to_string(&subscribe).map_err(|e| format!("subscribe encode: {e}"))?;
     socket
         .send(Message::Text(subscribe_payload.into()))
         .await
@@ -411,8 +411,7 @@ mod tests {
         // Drain a few samples — synthetic loop emits once per tick.
         let mut got_sample = false;
         for _ in 0..20 {
-            if let Ok(Some(evt)) =
-                tokio::time::timeout(Duration::from_millis(200), rx.recv()).await
+            if let Ok(Some(evt)) = tokio::time::timeout(Duration::from_millis(200), rx.recv()).await
             {
                 if let ChannelInfo::ImuSamples(samples) = evt {
                     if !samples.is_empty() {

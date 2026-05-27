@@ -20,8 +20,8 @@
 //! drive (heading + speed time series) so the rest of the stack — fusion,
 //! SlimeVR forwarding, UI — can be developed and tested end-to-end.
 
-pub mod auth;
 pub mod api;
+pub mod auth;
 pub mod config;
 pub mod device;
 pub mod factory;

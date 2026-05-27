@@ -79,15 +79,12 @@ pub async fn refresh(
             body,
         });
     }
-    let parsed: TokenResponse = serde_json::from_str(&body)
-        .map_err(|e| AuthError::Http(format!("json decode: {e}")))?;
+    let parsed: TokenResponse =
+        serde_json::from_str(&body).map_err(|e| AuthError::Http(format!("json decode: {e}")))?;
     if let Some(err) = parsed.error {
         return Err(AuthError::Status {
             status: 400,
-            body: format!(
-                "{err}: {}",
-                parsed.error_description.unwrap_or_default()
-            ),
+            body: format!("{err}: {}", parsed.error_description.unwrap_or_default()),
         });
     }
     let access_token = parsed

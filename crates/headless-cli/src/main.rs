@@ -267,10 +267,8 @@ async fn main() -> anyhow::Result<()> {
 
     let state = Arc::new(AppState::new(args.server, settings, bias_store).await?);
 
-    let any_synth = args.synthetic.is_some()
-        || args.synth_ds > 0
-        || args.synth_move > 0
-        || args.synth_tesla;
+    let any_synth =
+        args.synthetic.is_some() || args.synth_ds > 0 || args.synth_move > 0 || args.synth_tesla;
     let mut factories: Vec<Arc<dyn DeviceFactory>> = if any_synth {
         let jc_count = args.synthetic.unwrap_or(0);
         let mut v: Vec<Arc<dyn DeviceFactory>> = Vec::new();

@@ -145,11 +145,7 @@ mod tests {
     fn from_env_returns_none_when_unset() {
         // Snapshot + clear the variables we care about so this test is
         // hermetic regardless of the developer's shell.
-        let keys = [
-            "TESLA_REFRESH_TOKEN",
-            "TESLA_CLIENT_ID",
-            "TESLA_VEHICLE_ID",
-        ];
+        let keys = ["TESLA_REFRESH_TOKEN", "TESLA_CLIENT_ID", "TESLA_VEHICLE_ID"];
         let snapshot: Vec<(&str, Option<String>)> =
             keys.iter().map(|k| (*k, std::env::var(k).ok())).collect();
         for (k, _) in &snapshot {

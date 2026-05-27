@@ -59,11 +59,10 @@ impl ImuSynth {
         let prev_heading = self.last_heading_deg.replace(heading);
         let prev_speed = self.last_speed_mps.replace(speed_mps);
 
-        let (prev_ts, prev_heading, prev_speed) =
-            match (prev_ts, prev_heading, prev_speed) {
-                (Some(t), Some(h), Some(s)) => (t, h, s),
-                _ => return None,
-            };
+        let (prev_ts, prev_heading, prev_speed) = match (prev_ts, prev_heading, prev_speed) {
+            (Some(t), Some(h), Some(s)) => (t, h, s),
+            _ => return None,
+        };
 
         let dt_s = (timestamp_us.saturating_sub(prev_ts)) as f32 / 1_000_000.0;
         if !(dt_s.is_finite() && dt_s > 1e-3) {
@@ -132,15 +131,9 @@ mod tests {
         // Heading constant, speed grows by 10 mph (~4.47 m/s) over 1 s.
         let mut s = ImuSynth::new();
         let _ = s.ingest(0, Some(90.0), Some(20.0));
-        let sample = s
-            .ingest(1_000_000, Some(90.0), Some(30.0))
-            .expect("synth");
+        let sample = s.ingest(1_000_000, Some(90.0), Some(30.0)).expect("synth");
         assert_relative_eq!(sample.gyro[2], 0.0, epsilon = 1e-4);
-        assert_relative_eq!(
-            sample.accel[0],
-            10.0 * MPH_TO_MPS,
-            epsilon = 1e-3,
-        );
+        assert_relative_eq!(sample.accel[0], 10.0 * MPH_TO_MPS, epsilon = 1e-3,);
         // No turn → no centripetal accel.
         assert_relative_eq!(sample.accel[1], 0.0, epsilon = 1e-4);
         // Gravity baseline always present on Z.
@@ -152,14 +145,8 @@ mod tests {
         // Constant 30 mph (~13.41 m/s), heading sweeping 90°/s.
         let mut s = ImuSynth::new();
         let _ = s.ingest(0, Some(0.0), Some(30.0));
-        let sample = s
-            .ingest(1_000_000, Some(90.0), Some(30.0))
-            .expect("synth");
-        assert_relative_eq!(
-            sample.gyro[2],
-            90.0 * DEG_TO_RAD,
-            epsilon = 1e-3,
-        );
+        let sample = s.ingest(1_000_000, Some(90.0), Some(30.0)).expect("synth");
+        assert_relative_eq!(sample.gyro[2], 90.0 * DEG_TO_RAD, epsilon = 1e-3,);
         // Speed unchanged → no longitudinal accel.
         assert_relative_eq!(sample.accel[0], 0.0, epsilon = 1e-3);
         // Centripetal = v · ω. Sign matches yaw rate direction.
