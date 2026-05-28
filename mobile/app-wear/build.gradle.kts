@@ -1,8 +1,27 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
+
+// Release signing. Reads keystore.properties at the mobile root locally; falls
+// back to env vars in CI. When neither is present the release build stays
+// unsigned so contributors and CI without secrets can still assemble it.
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) FileInputStream(f).use { load(it) }
+}
+fun signingProp(key: String, env: String): String? =
+    keystoreProps.getProperty(key) ?: System.getenv(env)
+val releaseStoreFile = signingProp("storeFile", "ANDROID_RELEASE_KEYSTORE")
+val releaseStorePassword = signingProp("storePassword", "ANDROID_RELEASE_KEYSTORE_PASSWORD")
+val releaseKeyAlias = signingProp("keyAlias", "ANDROID_RELEASE_KEY_ALIAS")
+val releaseKeyPassword = signingProp("keyPassword", "ANDROID_RELEASE_KEY_PASSWORD")
+val hasReleaseSigning = releaseStoreFile != null && releaseStorePassword != null &&
+    releaseKeyAlias != null && releaseKeyPassword != null
 
 android {
     namespace = "cl.matiaspalma.everythingimu.wear"
@@ -12,8 +31,8 @@ android {
         applicationId = "cl.matiaspalma.everythingimu.wear"
         minSdk = 25
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.0.1-beta.0"
+        versionCode = 3
+        versionName = "1.0.2"
     }
 
     compileOptions {
@@ -30,9 +49,21 @@ android {
         buildConfig = true
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
         }
     }
 }
@@ -49,4 +80,6 @@ dependencies {
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.wear.compose.material)
     implementation(libs.wear.compose.foundation)
+
+    testImplementation(libs.junit)
 }

@@ -36,6 +36,9 @@ dependencies {
     api(libs.androidx.lifecycle.service)
     api(libs.androidx.datastore.preferences)
     api(libs.kotlinx.coroutines.android)
+    api(libs.play.services.wearable)
+    api(libs.kotlinx.coroutines.play.services)
+    api(libs.androidx.fragment)
 }
 
 // cargo-ndk integration. Cross-compiles `crates/jni-android` to native .so files

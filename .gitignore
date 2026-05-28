@@ -56,3 +56,7 @@ image*.png
 
 # Updater signing keys (local only — pubkey embedded in tauri.conf, private in GH secrets)
 .secrets/
+
+# Android release signing (local only — keystore + creds live in GH secrets)
+release.keystore
+keystore.properties
