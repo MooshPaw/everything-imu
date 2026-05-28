@@ -119,7 +119,7 @@ fun SettingsScreen() {
                     value = host,
                     onValueChange = {
                         host = it
-                        autosave(scope, host, port, portValid)
+                        autosave(ctx, scope, host, port, portValid)
                     },
                     label = { Text(t.field_host) },
                     singleLine = true,
@@ -130,7 +130,7 @@ fun SettingsScreen() {
                     value = port,
                     onValueChange = {
                         port = it.filter { c -> c.isDigit() }.take(5)
-                        autosave(scope, host, port, portValid)
+                        autosave(ctx, scope, host, port, portValid)
                     },
                     label = { Text(t.field_port) },
                     singleLine = true,
@@ -352,6 +352,7 @@ fun SettingsScreen() {
 }
 
 private fun autosave(
+    context: android.content.Context,
     scope: kotlinx.coroutines.CoroutineScope,
     host: String,
     port: String,
@@ -359,7 +360,7 @@ private fun autosave(
 ) {
     if (!portValid) return
     val p = port.toIntOrNull() ?: return
-    scope.launch { TrackingController.persistServer(host.trim(), p) }
+    scope.launch { TrackingController.persistAndSyncServer(context, host.trim(), p) }
 }
 
 @Composable
