@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.Exec
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
@@ -35,31 +37,65 @@ dependencies {
     api(libs.kotlinx.coroutines.android)
 }
 
-/**
- * cargo-ndk integration. Cross-compiles `crates/jni-android` to native .so files
- * under `core/src/main/jniLibs/<abi>/`. Skipped automatically when:
- *   - `cargo` or `cargo-ndk` is not on PATH
- *   - `ANDROID_NDK_HOME` is not set and no NDK is auto-discovered
- *   - the project property `skipCargoNdk=true` is passed (CI / quick iterations)
- *
- * Disable explicitly with:
- *   ./gradlew :app-mobile:assembleDebug -PskipCargoNdk=true
- */
-val skipCargoNdk: Boolean = (project.findProperty("skipCargoNdk") as? String)?.toBoolean() ?: false
+// cargo-ndk integration. Cross-compiles `crates/jni-android` to native .so files
+// under `core/src/main/jniLibs/<abi>/`. Every gating decision is made at
+// configuration time and reduced to plain values so the task closure carries
+// no Project / script references — required for Gradle's configuration cache.
 
-val workspaceRoot: File = rootProject.projectDir.parentFile
+val skipCargoNdk: Boolean =
+    (project.findProperty("skipCargoNdk") as? String)?.toBoolean() ?: false
+
+val workspaceRootPath: String = rootProject.projectDir.parentFile.absolutePath
+val jniLibsAbsPath: String = project.file("src/main/jniLibs").absolutePath
+
+val ndkHome: String? = run {
+    System.getenv("ANDROID_NDK_HOME")
+        ?: System.getenv("NDK_HOME")
+        ?: run {
+            val localProps = rootProject.file("local.properties")
+            if (localProps.exists()) {
+                localProps.useLines { lines ->
+                    for (line in lines) {
+                        if (line.startsWith("ndk.dir=")) {
+                            return@run line.substringAfter("=").trim()
+                        }
+                    }
+                }
+            }
+            val sdkRoot = System.getenv("ANDROID_SDK_ROOT")
+                ?: System.getenv("ANDROID_HOME")
+                ?: (System.getProperty("user.home") + "/AppData/Local/Android/Sdk")
+            val ndkRoot = java.io.File(sdkRoot, "ndk")
+            if (!ndkRoot.isDirectory) {
+                null
+            } else {
+                ndkRoot.listFiles { f -> f.isDirectory }
+                    ?.maxByOrNull { it.name }
+                    ?.absolutePath
+            }
+        }
+}
+
+fun executableOnPath(executable: String): Boolean {
+    val pathDirs = System.getenv("PATH")?.split(java.io.File.pathSeparator).orEmpty()
+    val candidates = if (System.getProperty("os.name").lowercase().contains("win")) {
+        listOf("$executable.exe", "$executable.cmd", "$executable.bat")
+    } else {
+        listOf(executable)
+    }
+    return pathDirs.any { dir -> candidates.any { java.io.File(dir, it).canExecute() } }
+}
+
+val cargoOnPath: Boolean = executableOnPath("cargo")
+val cargoNdkOnPath: Boolean = executableOnPath("cargo-ndk")
+val shouldRunCargoNdk: Boolean = !skipCargoNdk && cargoOnPath && cargoNdkOnPath
 
 val buildJniAndroid = tasks.register<Exec>("buildJniAndroid") {
     group = "build"
     description = "Cross-compile crates/jni-android via cargo-ndk to core/src/main/jniLibs."
 
-    val jniLibsDir = project.file("src/main/jniLibs")
-    workingDir = workspaceRoot
+    workingDir = java.io.File(workspaceRootPath)
     isIgnoreExitValue = true
-
-    val ndkHome = System.getenv("ANDROID_NDK_HOME")
-        ?: System.getenv("NDK_HOME")
-        ?: defaultNdkPath()
 
     if (ndkHome != null) {
         environment("ANDROID_NDK_HOME", ndkHome)
@@ -70,54 +106,24 @@ val buildJniAndroid = tasks.register<Exec>("buildJniAndroid") {
         "-t", "arm64-v8a",
         "-t", "armeabi-v7a",
         "-t", "x86_64",
-        "-o", jniLibsDir.absolutePath,
+        "-o", jniLibsAbsPath,
         "build", "-p", "jni-android", "--release",
     )
 
-    onlyIf {
-        if (skipCargoNdk) {
-            logger.lifecycle("buildJniAndroid: skipped (skipCargoNdk=true)")
-            return@onlyIf false
+    // Capture only primitives — no Project / logger / script-function refs.
+    val enabled = shouldRunCargoNdk
+    val skipReason = when {
+        skipCargoNdk -> "skipCargoNdk=true"
+        !cargoOnPath -> "'cargo' not found on PATH — using prebuilt jniLibs/"
+        !cargoNdkOnPath -> "'cargo-ndk' not installed; run `cargo install cargo-ndk`"
+        else -> null
+    }
+    onlyIf("cargo-ndk available and not skipped") {
+        if (!enabled) {
+            it.logger.lifecycle("buildJniAndroid: skipped ({})", skipReason ?: "disabled")
         }
-        if (!isOnPath("cargo")) {
-            logger.warn("buildJniAndroid: 'cargo' not found on PATH — using prebuilt jniLibs/")
-            return@onlyIf false
-        }
-        if (!isOnPath("cargo-ndk")) {
-            logger.warn("buildJniAndroid: 'cargo-ndk' not installed; run `cargo install cargo-ndk`")
-            return@onlyIf false
-        }
-        true
+        enabled
     }
 }
 
 tasks.named("preBuild").configure { dependsOn(buildJniAndroid) }
-
-fun defaultNdkPath(): String? {
-    val localProps = rootProject.file("local.properties")
-    if (localProps.exists()) {
-        localProps.useLines { lines ->
-            for (line in lines) {
-                if (line.startsWith("ndk.dir=")) return line.substringAfter("=").trim()
-            }
-        }
-    }
-    val sdkRoot = System.getenv("ANDROID_SDK_ROOT")
-        ?: System.getenv("ANDROID_HOME")
-        ?: (System.getProperty("user.home") + "/AppData/Local/Android/Sdk")
-    val ndkRoot = File(sdkRoot, "ndk")
-    if (!ndkRoot.isDirectory) return null
-    return ndkRoot.listFiles { f -> f.isDirectory }
-        ?.maxByOrNull { it.name }
-        ?.absolutePath
-}
-
-fun isOnPath(executable: String): Boolean {
-    val pathDirs = System.getenv("PATH")?.split(File.pathSeparator).orEmpty()
-    val candidates = if (System.getProperty("os.name").lowercase().contains("win")) {
-        listOf("$executable.exe", "$executable.cmd", "$executable.bat")
-    } else {
-        listOf(executable)
-    }
-    return pathDirs.any { dir -> candidates.any { File(dir, it).canExecute() } }
-}
