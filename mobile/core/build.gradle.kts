@@ -1,4 +1,5 @@
 import org.gradle.api.tasks.Exec
+import java.io.File
 
 plugins {
     alias(libs.plugins.android.library)
@@ -65,7 +66,7 @@ val ndkHome: String? = run {
             val sdkRoot = System.getenv("ANDROID_SDK_ROOT")
                 ?: System.getenv("ANDROID_HOME")
                 ?: (System.getProperty("user.home") + "/AppData/Local/Android/Sdk")
-            val ndkRoot = java.io.File(sdkRoot, "ndk")
+            val ndkRoot = File(sdkRoot, "ndk")
             if (!ndkRoot.isDirectory) {
                 null
             } else {
@@ -77,13 +78,13 @@ val ndkHome: String? = run {
 }
 
 fun executableOnPath(executable: String): Boolean {
-    val pathDirs = System.getenv("PATH")?.split(java.io.File.pathSeparator).orEmpty()
+    val pathDirs = System.getenv("PATH")?.split(File.pathSeparator).orEmpty()
     val candidates = if (System.getProperty("os.name").lowercase().contains("win")) {
         listOf("$executable.exe", "$executable.cmd", "$executable.bat")
     } else {
         listOf(executable)
     }
-    return pathDirs.any { dir -> candidates.any { java.io.File(dir, it).canExecute() } }
+    return pathDirs.any { dir -> candidates.any { File(dir, it).canExecute() } }
 }
 
 val cargoOnPath: Boolean = executableOnPath("cargo")
@@ -94,7 +95,7 @@ val buildJniAndroid = tasks.register<Exec>("buildJniAndroid") {
     group = "build"
     description = "Cross-compile crates/jni-android via cargo-ndk to core/src/main/jniLibs."
 
-    workingDir = java.io.File(workspaceRootPath)
+    workingDir = File(workspaceRootPath)
     isIgnoreExitValue = true
 
     if (ndkHome != null) {
