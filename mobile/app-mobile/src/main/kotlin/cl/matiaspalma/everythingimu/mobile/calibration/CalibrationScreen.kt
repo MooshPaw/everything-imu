@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -40,10 +41,11 @@ import kotlin.math.sin
 fun CalibrationScreen(onClose: () -> Unit) {
     val progress by TrackingController.magCalibrationSession.progress.collectAsStateWithLifecycle()
     val t = tr
+    val ctx = LocalContext.current
     var active by remember { mutableStateOf(false) }
 
     DisposableEffect(active) {
-        if (active) TrackingController.beginMagCalibration()
+        if (active) TrackingController.beginMagCalibration(ctx)
         onDispose { if (active) TrackingController.cancelMagCalibration() }
     }
 
