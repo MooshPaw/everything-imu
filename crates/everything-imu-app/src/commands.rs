@@ -151,6 +151,10 @@ pub async fn restart_synthetic(handle: State<'_, AppHandle>, count: u8) -> Resul
         Arc::new(JoyconFactory::synthetic(count)),
         Arc::new(DualSenseFactory::synthetic(count)),
         Arc::new(PsMoveFactory::synthetic(count)),
+        Arc::new(device_steam_deck::SteamDeckFactory::synthetic(count)),
+        Arc::new(device_steam_controller::SteamControllerFactory::synthetic(
+            count,
+        )),
     ];
     let sup = Supervisor::new(handle.state.clone(), factories);
     tokio::spawn(async move {
@@ -569,7 +573,15 @@ pub async fn doctor(handle: State<'_, AppHandle>) -> Result<DoctorReportDto, Ipc
         .unwrap_or_default();
     let sony_pads = device_dualsense::DualSenseFactory::list_paired().unwrap_or_default();
     let sony_moves = device_psmove::PsMoveFactory::list_paired().unwrap_or_default();
-    let total = nintendo.len() + jc2_nearby.len() + sony_pads.len() + sony_moves.len();
+    let steam_decks = device_steam_deck::SteamDeckFactory::list_paired().unwrap_or_default();
+    let steam_ctrls =
+        device_steam_controller::SteamControllerFactory::list_paired().unwrap_or_default();
+    let total = nintendo.len()
+        + jc2_nearby.len()
+        + sony_pads.len()
+        + sony_moves.len()
+        + steam_decks.len()
+        + steam_ctrls.len();
 
     let dev_status = if total == 0 {
         DoctorStatus::Warn
@@ -584,12 +596,14 @@ pub async fn doctor(handle: State<'_, AppHandle>) -> Result<DoctorReportDto, Ipc
             "No paired controllers visible. Check Bluetooth pairing.".into()
         } else {
             format!(
-                "{} controller(s) visible (jc1-hid={}, jc2-ble={}, sony-pad={}, ps-move={})",
+                "{} controller(s) visible (jc1-hid={}, jc2-ble={}, sony-pad={}, ps-move={}, steam-deck={}, steam-ctrl={})",
                 total,
                 nintendo.len(),
                 jc2_nearby.len(),
                 sony_pads.len(),
                 sony_moves.len(),
+                steam_decks.len(),
+                steam_ctrls.len(),
             )
         },
     });

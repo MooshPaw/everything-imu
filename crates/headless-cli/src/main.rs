@@ -2,6 +2,8 @@ use clap::Parser;
 use device_dualsense::DualSenseFactory;
 use device_joycon::JoyconFactory;
 use device_psmove::PsMoveFactory;
+use device_steam_controller::SteamControllerFactory;
+use device_steam_deck::SteamDeckFactory;
 use device_tesla::{TeslaConfig, TeslaFactory};
 use device_traits::{
     BiasStore, DeviceFactory, InMemoryBiasStore, InMemorySettingsStore, SettingsStore,
@@ -36,6 +38,14 @@ struct Cli {
     /// Spawn N synthetic PS Move controllers alongside the JC synth pool.
     #[arg(long, default_value_t = 0)]
     synth_move: u8,
+
+    /// Spawn N synthetic Steam Decks alongside the other synth factories.
+    #[arg(long, default_value_t = 0)]
+    synth_deck: u8,
+
+    /// Spawn N synthetic Steam Controllers alongside the other synth factories.
+    #[arg(long, default_value_t = 0)]
+    synth_steam_ctrl: u8,
 
     /// Run a synthetic Tesla tracker (figure-eight drive trace) alongside the
     /// other factories. Useful for end-to-end smoke tests without a vehicle.
@@ -119,17 +129,26 @@ async fn run_doctor(server: SocketAddr) -> i32 {
         .unwrap_or_default();
     let sony_pads = DualSenseFactory::list_paired().unwrap_or_default();
     let sony_moves = PsMoveFactory::list_paired().unwrap_or_default();
-    let total = nintendo.len() + jc2_nearby.len() + sony_pads.len() + sony_moves.len();
+    let steam_decks = SteamDeckFactory::list_paired().unwrap_or_default();
+    let steam_ctrls = SteamControllerFactory::list_paired().unwrap_or_default();
+    let total = nintendo.len()
+        + jc2_nearby.len()
+        + sony_pads.len()
+        + sony_moves.len()
+        + steam_decks.len()
+        + steam_ctrls.len();
     let dev = if total == 0 {
         CheckOutcome::Warn("no paired controllers visible (Bluetooth pairing?)".into())
     } else {
         CheckOutcome::Pass(format!(
-            "{} controller(s) visible (jc1-hid={}, jc2-ble={}, sony-pad={}, ps-move={})",
+            "{} controller(s) visible (jc1-hid={}, jc2-ble={}, sony-pad={}, ps-move={}, steam-deck={}, steam-ctrl={})",
             total,
             nintendo.len(),
             jc2_nearby.len(),
             sony_pads.len(),
             sony_moves.len(),
+            steam_decks.len(),
+            steam_ctrls.len(),
         ))
     };
     line("paired devices", &dev);
@@ -197,10 +216,14 @@ async fn main() -> anyhow::Result<()> {
         let jc2_nearby = JoyconFactory::list_nearby_jc2(1200).await?;
         let sony_pads = DualSenseFactory::list_paired()?;
         let sony_moves = PsMoveFactory::list_paired()?;
+        let steam_decks = SteamDeckFactory::list_paired()?;
+        let steam_ctrls = SteamControllerFactory::list_paired()?;
         if nintendo.is_empty()
             && jc2_nearby.is_empty()
             && sony_pads.is_empty()
             && sony_moves.is_empty()
+            && steam_decks.is_empty()
+            && steam_ctrls.is_empty()
         {
             println!("No paired Nintendo or Sony controllers visible to hidapi.");
             println!("Check Bluetooth pairing and that no other process holds the device.");
@@ -242,6 +265,24 @@ async fn main() -> anyhow::Result<()> {
                 );
             }
         }
+        if !steam_decks.is_empty() {
+            println!("Paired Steam Decks ({}):", steam_decks.len());
+            for (idx, d) in steam_decks.iter().enumerate() {
+                println!(
+                    "  [{idx}] serial={}  path={}  mac={:02X?}",
+                    d.serial, d.path, d.mac
+                );
+            }
+        }
+        if !steam_ctrls.is_empty() {
+            println!("Paired Steam Controllers ({}):", steam_ctrls.len());
+            for (idx, d) in steam_ctrls.iter().enumerate() {
+                println!(
+                    "  [{idx}] {:?}  pid=0x{:04X}  serial={}  mac={:02X?}",
+                    d.transport, d.pid, d.serial, d.mac
+                );
+            }
+        }
         return Ok(());
     }
 
@@ -267,8 +308,12 @@ async fn main() -> anyhow::Result<()> {
 
     let state = Arc::new(AppState::new(args.server, settings, bias_store).await?);
 
-    let any_synth =
-        args.synthetic.is_some() || args.synth_ds > 0 || args.synth_move > 0 || args.synth_tesla;
+    let any_synth = args.synthetic.is_some()
+        || args.synth_ds > 0
+        || args.synth_move > 0
+        || args.synth_deck > 0
+        || args.synth_steam_ctrl > 0
+        || args.synth_tesla;
     let mut factories: Vec<Arc<dyn DeviceFactory>> = if any_synth {
         let jc_count = args.synthetic.unwrap_or(0);
         let mut v: Vec<Arc<dyn DeviceFactory>> = Vec::new();
@@ -281,6 +326,14 @@ async fn main() -> anyhow::Result<()> {
         if args.synth_move > 0 {
             v.push(Arc::new(PsMoveFactory::synthetic(args.synth_move)));
         }
+        if args.synth_deck > 0 {
+            v.push(Arc::new(SteamDeckFactory::synthetic(args.synth_deck)));
+        }
+        if args.synth_steam_ctrl > 0 {
+            v.push(Arc::new(SteamControllerFactory::synthetic(
+                args.synth_steam_ctrl,
+            )));
+        }
         if args.synth_tesla {
             v.push(Arc::new(TeslaFactory::synthetic()));
         }
@@ -291,6 +344,8 @@ async fn main() -> anyhow::Result<()> {
             Arc::new(DualSenseFactory::new()),
             Arc::new(PsMoveFactory::new()),
             Arc::new(WiiFactory::new()),
+            Arc::new(SteamDeckFactory::new()),
+            Arc::new(SteamControllerFactory::new()),
         ]
     };
     if args.tesla {

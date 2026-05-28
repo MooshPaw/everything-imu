@@ -1191,6 +1191,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "device-steam-controller"
+version = "1.0.0-beta.9"
+dependencies = [
+ "approx",
+ "async-trait",
+ "device-traits",
+ "hidapi",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "device-steam-deck"
+version = "1.0.0-beta.9"
+dependencies = [
+ "approx",
+ "async-trait",
+ "device-traits",
+ "hidapi",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "device-tesla"
 version = "1.0.0-beta.9"
 dependencies = [
@@ -1530,6 +1556,8 @@ dependencies = [
  "device-dualsense",
  "device-joycon",
  "device-psmove",
+ "device-steam-controller",
+ "device-steam-deck",
  "device-tesla",
  "device-traits",
  "device-wii",
@@ -2284,6 +2312,8 @@ dependencies = [
  "device-dualsense",
  "device-joycon",
  "device-psmove",
+ "device-steam-controller",
+ "device-steam-deck",
  "device-tesla",
  "device-traits",
  "device-wii",

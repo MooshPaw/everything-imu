@@ -6,6 +6,8 @@ use crate::state::AppHandle;
 use device_dualsense::DualSenseFactory;
 use device_joycon::JoyconFactory;
 use device_psmove::PsMoveFactory;
+use device_steam_controller::SteamControllerFactory;
+use device_steam_deck::SteamDeckFactory;
 use device_tesla::{TeslaConfig, TeslaFactory};
 use device_traits::DeviceFactory;
 use device_wii::WiiFactory;
@@ -51,6 +53,8 @@ pub fn spawn(app: &TauriAppHandle, auto_start_synthetic: bool) {
                 Arc::new(JoyconFactory::synthetic(1)),
                 Arc::new(DualSenseFactory::synthetic(1)),
                 Arc::new(PsMoveFactory::synthetic(1)),
+                Arc::new(SteamDeckFactory::synthetic(1)),
+                Arc::new(SteamControllerFactory::synthetic(1)),
                 Arc::new(TeslaFactory::synthetic()),
             ]
         } else {
@@ -59,6 +63,8 @@ pub fn spawn(app: &TauriAppHandle, auto_start_synthetic: bool) {
                 Arc::new(DualSenseFactory::new()),
                 Arc::new(PsMoveFactory::new()),
                 Arc::new(WiiFactory::new()),
+                Arc::new(SteamDeckFactory::new()),
+                Arc::new(SteamControllerFactory::new()),
             ]
         };
         // Opt-in Tesla bridge driven by env vars. Same gating as the

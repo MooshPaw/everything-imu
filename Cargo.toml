@@ -9,6 +9,8 @@ members = [
     "crates/device-dualsense",
     "crates/device-psmove",
     "crates/device-wii",
+    "crates/device-steam-deck",
+    "crates/device-steam-controller",
     "crates/osc-haptics",
     "crates/device-tesla",
     "crates/persistence",
