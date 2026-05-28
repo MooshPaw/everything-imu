@@ -7,6 +7,36 @@ project follows [SemVer](https://semver.org/).
 Unreleased changes are tracked on `main`. Tagged releases are listed in
 reverse-chronological order below.
 
+## [mobile/1.0.2] - 2026-05-28
+
+### Added
+- Wear OS standalone host configuration. The watch no longer needs a companion
+  phone to set the SlimeVR server address:
+  - **Auto-sync from phone.** When the watch is paired and Play Services is
+    present, setting the server address on the phone pushes it to the watch over
+    the Wearable Data Layer; the watch persists it automatically.
+  - **On-watch IP picker.** A rotary/swipe wheel picker (four octet wheels plus
+    a port wheel) lets you enter the address directly on the watch — no keyboard,
+    no network, no Play Services. This is the universal fallback for AOSP /
+    de-Googled / China-market watches where Data Layer sync is unavailable.
+  - An "Edit IP" button on the watch reopens the picker at any time.
+- Release APK signing wired through Gradle and CI so the phone and watch builds
+  share one signing key (a hard requirement for the Data Layer to deliver
+  messages between the two apps).
+
+### Changed
+- Mobile phone + wear apps bumped to `1.0.2`.
+
+### Fixed
+- Release APKs are now signed. The previous unsigned release artifacts failed to
+  install ("package appears invalid") because Android rejects APKs with no
+  certificate.
+
+### Upgrade notes
+- Upgrading from an earlier unsigned build: uninstall the old app first, then
+  install `1.0.2`. Android refuses an in-place upgrade when the signing key
+  changes.
+
 ## [1.0.0-beta.8] - 2026-05-24
 
 ### Security
