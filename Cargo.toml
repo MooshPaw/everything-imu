@@ -17,6 +17,7 @@ members = [
     "crates/core",
     "crates/everything-imu-app",
     "crates/headless-cli",
+    "crates/jni-android",
 ]
 
 [workspace.package]
