@@ -37,8 +37,18 @@ class AppPrefs(context: Context) {
     val themeMode: Flow<String> = store.data.map { it[KEY_THEME] ?: "dark" }
     val trackerName: Flow<String> = store.data.map { it[KEY_TRACKER_NAME] ?: "" }
     val sendRateHz: Flow<Int> = store.data.map { it[KEY_SEND_RATE] ?: 100 }
-    val magEnabled: Flow<Boolean> = store.data.map { it[KEY_MAG_ENABLED] ?: true }
+    // Default OFF: a raw, uncalibrated magnetometer near a PC/monitor (the
+    // typical VR setup) drags VQF's heading and causes yaw drift at rest.
+    // owoTrack and moveTrackVR default mag off for the same reason. Users can
+    // opt in via the toggle after running the figure-8 calibration.
+    val magEnabled: Flow<Boolean> = store.data.map { it[KEY_MAG_ENABLED] ?: false }
     val shakeRecenter: Flow<Boolean> = store.data.map { it[KEY_SHAKE_RECENTER] ?: true }
+
+    // false = on-device VQF (default). true = OS Game Rotation Vector (owoTrack-style).
+    val useOsRotation: Flow<Boolean> = store.data.map { it[KEY_OS_ROTATION] ?: false }
+
+    // Start the OSC haptic server automatically on connect.
+    val autostartHaptics: Flow<Boolean> = store.data.map { it[KEY_AUTOSTART_HAPTICS] ?: false }
 
     suspend fun setLanguage(code: String) {
         store.edit { it[KEY_LANGUAGE] = code }
@@ -62,6 +72,14 @@ class AppPrefs(context: Context) {
 
     suspend fun setShakeRecenter(enabled: Boolean) {
         store.edit { it[KEY_SHAKE_RECENTER] = enabled }
+    }
+
+    suspend fun setUseOsRotation(enabled: Boolean) {
+        store.edit { it[KEY_OS_ROTATION] = enabled }
+    }
+
+    suspend fun setAutostartHaptics(enabled: Boolean) {
+        store.edit { it[KEY_AUTOSTART_HAPTICS] = enabled }
     }
 
     suspend fun setServiceWanted(value: Boolean) {
@@ -161,6 +179,8 @@ class AppPrefs(context: Context) {
         private val KEY_SEND_RATE = intPreferencesKey("send_rate_hz")
         private val KEY_MAG_ENABLED = booleanPreferencesKey("mag_enabled")
         private val KEY_SHAKE_RECENTER = booleanPreferencesKey("shake_recenter")
+        private val KEY_OS_ROTATION = booleanPreferencesKey("use_os_rotation")
+        private val KEY_AUTOSTART_HAPTICS = booleanPreferencesKey("autostart_haptics")
         private val KEY_GYRO_BIAS_X = floatPreferencesKey("gyro_bias_x")
         private val KEY_GYRO_BIAS_Y = floatPreferencesKey("gyro_bias_y")
         private val KEY_GYRO_BIAS_Z = floatPreferencesKey("gyro_bias_z")
