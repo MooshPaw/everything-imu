@@ -36,7 +36,12 @@ import cl.matiaspalma.everythingimu.core.net.ConnectionState
 import cl.matiaspalma.everythingimu.core.tracking.TrackingController
 import cl.matiaspalma.everythingimu.core.update.UpdateChecker
 import cl.matiaspalma.everythingimu.wear.BuildConfig
+import cl.matiaspalma.everythingimu.wear.setup.HostPickerScreen
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 class MainActivity : ComponentActivity() {
 
@@ -71,14 +76,46 @@ private fun WearApp() {
 
         var host by remember { mutableStateOf("") }
         var port by remember { mutableStateOf(6969) }
+        var showPicker by remember { mutableStateOf(false) }
         var updateInfo by remember { mutableStateOf<UpdateChecker.UpdateInfo?>(null) }
         LaunchedEffect(Unit) {
             host = TrackingController.savedHost()
             port = TrackingController.savedPort()
+            if (host.isBlank()) {
+                val gmsOk = GoogleApiAvailability.getInstance()
+                    .isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
+                if (gmsOk) {
+                    // Give the paired phone's Data Layer push a moment to land
+                    // before falling back to manual entry.
+                    withTimeoutOrNull(3000) {
+                        TrackingController.serverHostFlow()?.first { it.isNotBlank() }
+                    }
+                    host = TrackingController.savedHost()
+                    port = TrackingController.savedPort()
+                }
+                // No GMS (AOSP / de-Googled), or no push arrived → picker.
+                showPicker = host.isBlank()
+            }
             // Background update check. Wear has no browser of its own, so the
             // ACTION_VIEW intent below typically prompts the user to open the
             // release page on the paired phone instead.
             updateInfo = UpdateChecker.check(BuildConfig.VERSION_NAME)
+        }
+
+        if (showPicker) {
+            HostPickerScreen(
+                initialHost = host,
+                initialPort = port,
+                onSave = { h, p ->
+                    scope.launch {
+                        TrackingController.persistServer(h, p)
+                        host = h
+                        port = p
+                        showPicker = false
+                    }
+                },
+            )
+            return@MaterialTheme
         }
 
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -100,6 +137,10 @@ private fun WearApp() {
                 )
                 if (!lastError.isNullOrBlank()) {
                     Text(lastError.orEmpty(), style = MaterialTheme.typography.caption2)
+                }
+
+                Button(onClick = { showPicker = true }) {
+                    Text(if (host.isBlank()) "Set IP" else "Edit IP")
                 }
 
                 Button(onClick = {
