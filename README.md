@@ -120,6 +120,7 @@ Or build from source — see [Building from source](#building-from-source) below
 ## HAPTICS
 ### VRChat Avatar Setup
 You **MUST** have [VRCFury](https://vrcfury.com/download) on your Unity Project.
+
 You **MUST NOT** Upload the avatar as a *test*, as it prevents the inicialization of OSC protocols, please create a duplicate avatar and test it from there. 
 
 1. Import the [IMUHaptics.unitypackage](https://github.com/matiaspalmac/everything-imu/releases/download/latest/IMUHaptics.unitypackage) into your Unity Project
@@ -128,10 +129,13 @@ You **MUST NOT** Upload the avatar as a *test*, as it prevents the inicializatio
 <img width="489" height="698" alt="image" src="https://github.com/user-attachments/assets/183da3cd-8745-402b-9380-9466f5a2eca8" />
 
 3. Move the GameObjects to match your avatar proportions
+
 <img width="442" height="547" alt="image" src="https://github.com/user-attachments/assets/d4ea4d7e-2630-4f16-8a72-b6b62f8f9d6f" />
+
 <img width="1373" height="598" alt="image" src="https://github.com/user-attachments/assets/d693fbad-2e9c-49ea-8437-b1f3b97303f4" />
 
 4. (Optional) Disable Haptic points you won't use, this frees your PC from loading unnecesary parameters, even though the performance impact is minimal
+
 <img width="187" height="100" alt="image" src="https://github.com/user-attachments/assets/38c9e30c-a7ca-47e6-b8e1-ff0edef4686c" />
 
 5. Upload avatar and test
@@ -181,14 +185,17 @@ If your tracker is going to be at your stomach, your Haptic point should also be
 8. Adjust settings accordingly
 
 ***Proximity (variable)*** 
+
 <img width="159" height="64" alt="image" src="https://github.com/user-attachments/assets/de9188e0-7890-4939-babc-a47ad0704e82" />
 Variable float strength from 0 to 1, will rumble more when the VRC contact receiver is touched at the center, and less when is touched at the edges. 
 
 ***Pulse (fixed)*** 
+
 <img width="157" height="61" alt="image" src="https://github.com/user-attachments/assets/58e3e542-311d-473a-bd86-0360c71df2a5" />
 Activates the Rumble **Once** for a certain amount of time (*Pulse (ms)*) before turning it off. Useful to pair with a VRC contact receiver set to **On Enter**
 
 ***Select available OSC addresses***
+
 <img width="1023" height="150" alt="image" src="https://github.com/user-attachments/assets/9393ee7b-a520-47e7-979f-9526d949248c" />
 To avoid typing the address manually, you may add them via the **Discovered OSC Addresses** section.
 
